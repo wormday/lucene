@@ -922,24 +922,21 @@ public class IndexWriter
   }
 
   /**
-   * Constructs a new IndexWriter per the settings given in <code>conf</code>. If you want to make
-   * "live" changes to this writer instance, use {@link #getConfig()}.
+   * 根据 <code>conf</code> 中的设置，构造一个新的 IndexWriter.
+   * 如果你想对这个实例实时的修改，使用  {@link #getConfig()}.
+   * <p><b>NOTE:</b> writer 被创建后, 响应的配置实例不能传递给另外一个 writer.
    *
-   * <p><b>NOTE:</b> after ths writer is created, the given configuration instance cannot be passed
-   * to another writer.
-   *
-   * @param d the index directory. The index is either created or appended according <code>
-   *     conf.getOpenMode()</code>.
-   * @param conf the configuration settings according to which IndexWriter should be initialized.
+   * @param d 索引的目录。 这个索引是创建还是追加需要根据 <code>conf.getOpenMode()</code>.
+   * @param conf IndexWriter 初始化所依据的配置设置。
    * @throws IOException if the directory cannot be read/written to, or if it does not exist and
    *     <code>conf.getOpenMode()</code> is <code>OpenMode.APPEND</code> or if there is any other
    *     low-level IO error
    */
   public IndexWriter(Directory d, IndexWriterConfig conf) throws IOException {
-    enableTestPoints = isEnableTestPoints();
-    conf.setIndexWriter(this); // prevent reuse by other instances
-    config = conf;
-    infoStream = config.getInfoStream();
+    enableTestPoints = isEnableTestPoints(); // 测试使用
+    conf.setIndexWriter(this); // 需要防止conf被其他实例重用
+    config = conf; // conf 和 IndexWriter 相互引用
+    infoStream = config.getInfoStream(); // ?????用于打印合并信息?
     softDeletesEnabled = config.getSoftDeletesField() != null;
     eventListener = config.getIndexWriterEventListener();
     // obtain the write.lock. If the user configured a timeout,
@@ -984,7 +981,8 @@ public class IndexWriter
       }
 
       if (create) {
-
+        // 这里的create 要么是 OpenMode.CREATE 要么是 指定的索引目录为空
+        // 总之这两种情况不能指定 IndexCommit
         if (config.getIndexCommit() != null) {
           // We cannot both open from a commit point and create:
           if (mode == OpenMode.CREATE) {
@@ -1069,6 +1067,7 @@ public class IndexWriter
       } else {
         // Init from either the latest commit point, or an explicit prior commit point:
 
+        // segments_N 获取N最大的那个文件,这里的N是36进制的数字
         String lastSegmentsFile = SegmentInfos.getLastCommitSegmentsFileName(files);
         if (lastSegmentsFile == null) {
           throw new IndexNotFoundException(

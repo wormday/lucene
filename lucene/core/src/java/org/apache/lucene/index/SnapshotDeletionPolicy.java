@@ -32,9 +32,8 @@ import org.apache.lucene.store.Directory;
  * this gives you the freedom to continue using whatever {@link IndexDeletionPolicy} you would
  * normally want to use with your index.
  *
- * <p>This class maintains all snapshots in-memory, and so the information is not persisted and not
- * protected against system failures. If persistence is important, you can use {@link
- * PersistentSnapshotDeletionPolicy}.
+ * <p>这个类在内存中维护所有快照, 因此信息不会持久保存，也不能抵御系统故障. 如果持久保存非常重要，
+ * 你可以使用 {@link PersistentSnapshotDeletionPolicy}.
  *
  * @lucene.experimental
  */
@@ -43,7 +42,7 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
   /** Records how many snapshots are held against each commit generation */
   protected final Map<Long, Integer> refCounts = new HashMap<>();
 
-  /** Used to map gen to IndexCommit. */
+  /** 用于 map 代和索引提交. */
   protected final Map<Long, IndexCommit> indexCommits = new HashMap<>();
 
   /** Wrapped {@link IndexDeletionPolicy} */
@@ -55,7 +54,7 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
   /** Used to detect misuse */
   private boolean initCalled;
 
-  /** Sole constructor, taking the incoming {@link IndexDeletionPolicy} to wrap. */
+  /** 唯一的构造函数 {@link IndexDeletionPolicy} 用于包裹. */
   public SnapshotDeletionPolicy(IndexDeletionPolicy primary) {
     this.primary = primary;
   }
@@ -126,18 +125,15 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
   }
 
   /**
-   * Snapshots the last commit and returns it. Once a commit is 'snapshotted,' it is protected from
-   * deletion (as long as this {@link IndexDeletionPolicy} is used). The snapshot can be removed by
-   * calling {@link #release(IndexCommit)} followed by a call to {@link
-   * IndexWriter#deleteUnusedFiles()}.
+   * 快照并返回最后一个提交. 一旦一个提交‘被快照’，他就被保护，不被删除 (尽管配置了 {@link IndexDeletionPolicy})。
+   * 快照可以通过调用 {@link #release(IndexCommit)}
+   * 然后调用 {@link IndexWriter#deleteUnusedFiles()} 进行删除。
    *
-   * <p><b>NOTE:</b> while the snapshot is held, the files it references will not be deleted, which
-   * will consume additional disk space in your index. If you take a snapshot at a particularly bad
-   * time (say just before you call forceMerge) then in the worst case this could consume an extra
-   * 1X of your total index size, until you release the snapshot.
+   * <p><b>NOTE:</b> 当快照被保存时，它引用的文件不会被删除， 这会消耗索引中的额外磁盘空间。 如果你在一个特别糟糕的时间生成快照
+   * (比如说恰巧在调用 forceMerge 之前) 那么在最坏的情况下，这可能会消耗总索引大小的1倍，直到你释放这个快照。
    *
-   * @throws IllegalStateException if this index does not have any commits yet
-   * @return the {@link IndexCommit} that was snapshotted.
+   * @throws IllegalStateException 如果这个索引还没有任何提交
+   * @return 被快照的那个 {@link IndexCommit}。
    */
   public synchronized IndexCommit snapshot() throws IOException {
     if (!initCalled) {
@@ -148,9 +144,7 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
       // No commit yet, eg this is a new IndexWriter:
       throw new IllegalStateException("No index commit to snapshot");
     }
-
     incRef(lastCommit);
-
     return lastCommit;
   }
 
@@ -177,7 +171,7 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
     return indexCommits.get(gen);
   }
 
-  /** Wraps each {@link IndexCommit} as a {@link SnapshotCommitPoint}. */
+  /** 将每个 {@link IndexCommit} 包装成 {@link SnapshotCommitPoint}。 */
   private List<IndexCommit> wrapCommits(List<? extends IndexCommit> commits) {
     List<IndexCommit> wrappedCommits = new ArrayList<>(commits.size());
     for (IndexCommit ic : commits) {
@@ -186,13 +180,13 @@ public class SnapshotDeletionPolicy extends IndexDeletionPolicy {
     return wrappedCommits;
   }
 
-  /** Wraps a provided {@link IndexCommit} and prevents it from being deleted. */
+  /** 包装一个提供的 {@link IndexCommit} 防止它被删除。 */
   private class SnapshotCommitPoint extends IndexCommit {
 
-    /** The {@link IndexCommit} we are preventing from deletion. */
+    /** 阻止被删除的 {@link IndexCommit}。 */
     protected IndexCommit cp;
 
-    /** Creates a {@code SnapshotCommitPoint} wrapping the provided {@link IndexCommit}. */
+    /** 为提供的 {@link IndexCommit} 创建一个包装它的 {@code SnapshotCommitPoint}。 */
     protected SnapshotCommitPoint(IndexCommit cp) {
       this.cp = cp;
     }

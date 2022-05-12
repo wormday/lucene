@@ -19,12 +19,12 @@ package org.apache.lucene.index;
 import java.util.List;
 
 /**
- * An {@link IndexDeletionPolicy} which keeps all index commits around, never deleting them. This
- * class is a singleton and can be accessed by referencing {@link #INSTANCE}.
+ * {@link IndexDeletionPolicy} 保存所有索引的提交, 从不删除他们。
+ *  这个类是一个单例对象，可以通过引用 {@link #INSTANCE} 进行访问。
  */
 public final class NoDeletionPolicy extends IndexDeletionPolicy {
 
-  /** The single instance of this class. */
+  /** 这个类的单例对象。 */
   public static final IndexDeletionPolicy INSTANCE = new NoDeletionPolicy();
 
   private NoDeletionPolicy() {
