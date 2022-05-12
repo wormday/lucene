@@ -249,9 +249,9 @@ public abstract class DirectoryReader extends BaseCompositeReader<LeafReader> {
   }
 
   /**
-   * Returns all commit points that exist in the Directory. Normally, because the default is {@link
-   * KeepOnlyLastCommitDeletionPolicy}, there would be only one commit point. But if you're using a
-   * custom {@link IndexDeletionPolicy} then there could be many commits. Once you have a given
+   * 返回目录中所有的提交点。
+   * 通常情况下因为默认是 {@link KeepOnlyLastCommitDeletionPolicy}, 只会有一个.
+   * 但如果你自定义了 {@link IndexDeletionPolicy} 那么将会有多个提交. Once you have a given
    * commit, you can open a reader on it by calling {@link DirectoryReader#open(IndexCommit)} There
    * must be at least one commit in the Directory, else this method throws {@link
    * IndexNotFoundException}. Note that if a commit is in progress while this method is running,

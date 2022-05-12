@@ -291,7 +291,7 @@ public final class SegmentInfos implements Cloneable, Iterable<SegmentCommitInfo
   static final SegmentInfos readCommit(
       Directory directory, String segmentFileName, int minSupportedMajorVersion)
       throws IOException {
-
+    // 获取 segments_N 序号，原始保存的是36进制
     long generation = generationFromSegmentsFileName(segmentFileName);
     // System.out.println(Thread.currentThread() + ": SegmentInfos.readCommit " + segmentFileName);
     try (ChecksumIndexInput input = directory.openChecksumInput(segmentFileName, IOContext.READ)) {

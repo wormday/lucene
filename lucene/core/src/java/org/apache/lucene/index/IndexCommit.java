@@ -89,7 +89,7 @@ public abstract class IndexCommit implements Comparable<IndexCommit> {
     return getDirectory().hashCode() + Long.valueOf(getGeneration()).hashCode();
   }
 
-  /** Returns the generation (the _N in segments_N) for this IndexCommit */
+  /** 返回这个索引提交的代数(也就是 segments_N 中的 N) */
   public abstract long getGeneration();
 
   /**

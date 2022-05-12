@@ -26,34 +26,30 @@ import java.util.List;
  * IndexWriterConfig#setIndexDeletionPolicy(IndexDeletionPolicy)} to customize when older {@link
  * IndexCommit point-in-time commits} are deleted from the index directory.
  *
- * <p>The default deletion policy is {@link KeepOnlyLastCommitDeletionPolicy}, always removes old
- * commits as soon as a new commit is done (this matches the behavior before 2.2).
+ * <p>默认的删除策略为 {@link KeepOnlyLastCommitDeletionPolicy}, 当新的提交产生是，总是删除旧的提交 (这与 2.2 之前的策略一致).
  *
- * <p>One expected use case for this (and the reason why it was first created) is to work around
+ * <p>One expected use case for this (它最初被创建的原因) is to work around
  * problems with an index directory accessed via filesystems like NFS because NFS does not provide
  * the "delete on last close" semantics that Lucene's "point in time" search normally relies on. By
- * implementing a custom deletion policy, such as "a commit is only removed once it has been stale
- * for more than X minutes", you can give your readers time to refresh to the new commit before
- * {@link IndexWriter} removes the old commits. Note that doing so will increase the storage
- * requirements of the index. See <a target="top"
- * href="http://issues.apache.org/jira/browse/LUCENE-710">LUCENE-710</a> for details.
+ * implementing a custom deletion policy, such as "提交只有在过期超过X分钟后才会被删除  ",
+ * you can give your readers time to refresh to the new commit before
+ * {@link IndexWriter} removes the old commits. 注意，这样做将增加索引的存储需求 .
+ * 查看 <a target="top" href="http://issues.apache.org/jira/browse/LUCENE-710">LUCENE-710</a> 了解详情.
  */
 public abstract class IndexDeletionPolicy {
 
-  /** Sole constructor, typically called by sub-classes constructors. */
+  /** 唯一的构造函数，通常由子类的构造函数调用。 */
   protected IndexDeletionPolicy() {}
 
   /**
-   * This is called once when a writer is first instantiated to give the policy a chance to remove
-   * old commit points.
+   * 第一次实例化 writer 时调用这个方法，以便给策略一个机会来删除旧的提交点。
    *
    * <p>The writer locates all index commits present in the index directory and calls this method.
    * The policy may choose to delete some of the commit points, doing so by calling method {@link
    * IndexCommit#delete delete()} of {@link IndexCommit}.
    *
-   * <p><u>Note:</u> the last CommitPoint is the most recent one, i.e. the "front index state". Be
-   * careful not to delete it, unless you know for sure what you are doing, and unless you can
-   * afford to lose the index content while doing that.
+   * <p><u>Note:</u> 最后的 CommitPoint 是最新的一个, 即 "front index state"。
+   * 注意不要删除它，除非您确实知道自己在做什么, 除非你能够承担丢失索引内容的损失。
    *
    * @param commits List of current {@link IndexCommit point-in-time commits}, sorted by age (the
    *     0th one is the oldest commit). Note that for a new index this method is invoked with an
@@ -62,8 +58,7 @@ public abstract class IndexDeletionPolicy {
   public abstract void onInit(List<? extends IndexCommit> commits) throws IOException;
 
   /**
-   * This is called each time the writer completed a commit. This gives the policy a chance to
-   * remove old commit points with each commit.
+   * writer 完成一个提交后调用这个方法，以便给策略一个机会来删除旧的提交点。
    *
    * <p>The policy may now choose to delete old commit points by calling method {@link
    * IndexCommit#delete delete()} of {@link IndexCommit}.
@@ -71,9 +66,8 @@ public abstract class IndexDeletionPolicy {
    * <p>This method is only called when {@link IndexWriter#commit} or {@link IndexWriter#close} is
    * called, or possibly not at all if the {@link IndexWriter#rollback} is called.
    *
-   * <p><u>Note:</u> the last CommitPoint is the most recent one, i.e. the "front index state". Be
-   * careful not to delete it, unless you know for sure what you are doing, and unless you can
-   * afford to lose the index content while doing that.
+   * <p><u>Note:</u> 最后的 CommitPoint 是最新的一个, 即 "front index state"。
+   * 注意不要删除它，除非您确实知道自己在做什么, 除非你能够承担丢失索引内容的损失。
    *
    * @param commits List of {@link IndexCommit}, sorted by age (the 0th one is the oldest commit).
    */

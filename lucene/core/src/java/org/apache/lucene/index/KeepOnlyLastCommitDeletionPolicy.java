@@ -19,23 +19,22 @@ package org.apache.lucene.index;
 import java.util.List;
 
 /**
- * This {@link IndexDeletionPolicy} implementation that keeps only the most recent commit and
- * immediately removes all prior commits after a new commit is done. This is the default deletion
- * policy.
+ * 这个 {@link IndexDeletionPolicy} 的实现，仅保存最新的提交，
+ * 当一个新提交产生，先前的所有提交都会立即删除。这是默认的删除策略。
  */
 public final class KeepOnlyLastCommitDeletionPolicy extends IndexDeletionPolicy {
 
-  /** Sole constructor. */
+  /** 唯一的构造函数。 */
   public KeepOnlyLastCommitDeletionPolicy() {}
 
-  /** Deletes all commits except the most recent one. */
+  /** 删除所有的提交，除了最新的那一个。 */
   @Override
   public void onInit(List<? extends IndexCommit> commits) {
     // Note that commits.size() should normally be 1:
     onCommit(commits);
   }
 
-  /** Deletes all commits except the most recent one. */
+  /** 删除所有的提交，除了最新的那一个。 */
   @Override
   public void onCommit(List<? extends IndexCommit> commits) {
     // Note that commits.size() should normally be 2 (if not
