@@ -83,25 +83,25 @@ public final class NativeFSLockFactory extends FSLockFactory {
     try {
       Files.createFile(lockFile);
     } catch (IOException ignore) {
-      // we must create the file to have a truly canonical path.
-      // if it's already created, we don't care. if it cant be created, it will fail below.
+      // 我们必须创建文件以拥有真正规范的路径。
+      // 如果它已经创建，我们不关心。 如果它不能被创建，它将在下面失败。
       creationException = ignore;
     }
 
-    // fails if the lock file does not exist
+    // 如果lock文件不存在，则失败
     final Path realPath;
     try {
       realPath = lockFile.toRealPath();
     } catch (IOException e) {
-      // if we couldn't resolve the lock file, it might be because we couldn't create it.
-      // so append any exception from createFile as a suppressed exception, in case its useful
+      // 如果我们不能解析锁文件，可能是因为我们不能创建它。
+      // 所以追加 createFile 中的异常作为抑制异常追加，以防它有用
       if (creationException != null) {
         e.addSuppressed(creationException);
       }
       throw e;
     }
 
-    // used as a best-effort check, to see if the underlying file has changed
+    // 最好再检查一下, 文件是否改变
     final FileTime creationTime =
         Files.readAttributes(realPath, BasicFileAttributes.class).creationTime();
 
