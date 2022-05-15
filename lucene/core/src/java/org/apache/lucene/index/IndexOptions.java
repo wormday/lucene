@@ -17,7 +17,7 @@
 package org.apache.lucene.index;
 
 /**
- * Controls how much information is stored in the postings lists.
+ * 控制 posting list 中存储那些信息。
  *
  * @lucene.experimental
  */
@@ -27,22 +27,25 @@ public enum IndexOptions {
   // "downgrades" by picking the lowest).
   /** Not indexed */
   NONE,
+
   /**
-   * Only documents are indexed: term frequencies and positions are omitted. Phrase and other
-   * positional queries on the field will throw an exception, and scoring will behave as if any term
-   * in the document appears only once.
+   * 只有文档被索引: 忽略词频、位置信息。 在该字段上查询短语(Phrase)和其他位置信息将抛出异常。
+   * and scoring will behave as if any term in the document appears only once.
    */
   DOCS,
+
   /**
-   * Only documents and term frequencies are indexed: positions are omitted. This enables normal
-   * scoring, except Phrase and other positional queries will throw an exception.
+   * 只有文档和词频被索引: 位置信息被忽略。 支持正常的算分。
+   * except Phrase and other positional queries will throw an exception.
    */
   DOCS_AND_FREQS,
+
   /**
-   * Indexes documents, frequencies and positions. This is a typical default for full-text search:
+   * 索引文档、词频、位置信息。 这是全文搜索的典型默认值  :
    * full scoring is enabled and positional queries are supported.
    */
   DOCS_AND_FREQS_AND_POSITIONS,
+
   /**
    * Indexes documents, frequencies, positions and offsets. Character offsets are encoded alongside
    * the positions.

@@ -1436,31 +1436,30 @@ public class IndexWriter
   }
 
   /**
-   * Adds a document to this index.
+   * 向索引中添加一个文档
    *
-   * <p>Note that if an Exception is hit (for example disk full) then the index will be consistent,
-   * but this document may not have been added. Furthermore, it's possible the index will have one
+   * <p>注意， 如果发生了异常 (比如磁盘已满) 索引将是一致的，但是这个文档可能没有被添加。
+   * Furthermore, it's possible the index will have one
    * segment in non-compound format even when using compound files (when a merge has partially
    * succeeded).
    *
-   * <p>This method periodically flushes pending documents to the Directory (see <a
-   * href="#flush">above</a>), and also periodically triggers segment merges in the index according
-   * to the {@link MergePolicy} in use.
+   * <p>这个方法定期的将待处理的文档刷入目录中 (see <a href="#flush">above</a>),
+   * 并且根据 {@link MergePolicy} 定期触发段合并
    *
-   * <p>Merges temporarily consume space in the directory. The amount of space required is up to 1X
-   * the size of all segments being merged, when no readers/searchers are open against the index,
-   * and up to 2X the size of all segments being merged when readers/searchers are open against the
-   * index (see {@link #forceMerge(int)} for details). The sequence of primitive merge operations
+   * <p>段合并会临时占用目录空间。
+   * 当没有 readers/searchers 打开这个索引时，所需要的空间量是所有合并段大小的1倍
+   * 如果有 readers/searchers 打开这个索引时，所需要的空间量是所有合并段大小的2倍
+   * (参考 {@link #forceMerge(int)} 查看详情). The sequence of primitive merge operations
    * performed is governed by the merge policy.
    *
-   * <p>Note that each term in the document can be no longer than {@link #MAX_TERM_LENGTH} in bytes,
-   * otherwise an IllegalArgumentException will be thrown.
+   * <p>注意，文档中的每个词的字节长度不能超过 {@link #MAX_TERM_LENGTH},
+   * 否则会抛出异常 IllegalArgumentException
    *
    * <p>Note that it's possible to create an invalid Unicode string in java if a UTF16 surrogate
    * pair is malformed. In this case, the invalid characters are silently replaced with the Unicode
    * replacement character U+FFFD.
    *
-   * @return The <a href="#sequence_number">sequence number</a> for this operation
+   * @return 这个操作的 <a href="#sequence_number">sequence number</a>
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
@@ -1805,7 +1804,7 @@ public class IndexWriter
    * adding the new document. The delete and then add are atomic as seen by a reader on the same
    * index (flush may happen only after the add).
    *
-   * @return The <a href="#sequence_number">sequence number</a> for this operation
+   * @return 这个操作的 <a href="#sequence_number">sequence number</a>
    * @param term the term to identify the document(s) to be deleted
    * @param doc the document to be added
    * @throws CorruptIndexException if the index is corrupt

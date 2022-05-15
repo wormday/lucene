@@ -92,8 +92,7 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
         throw new ThreadInterruptedException(ie);
       }
     }
-    // we must check if we are closed since this might happen while we are waiting for the writer
-    // permit
+    // 在这里必须检查是否关闭了， 因为在等待 WriterPermits 的时候，已经关闭了
     // and if we miss that we might release a new DWPT even though the pool is closed. Yet, that
     // wouldn't be the
     // end of the world it's violating the contract that we don't release any new DWPT after this

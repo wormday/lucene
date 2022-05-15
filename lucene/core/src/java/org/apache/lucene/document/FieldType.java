@@ -27,7 +27,7 @@ import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.VectorSimilarityFunction;
 import org.apache.lucene.index.VectorValues;
 
-/** Describes the properties of a field. */
+/** 描述一个字段的属性。 */
 public class FieldType implements IndexableFieldType {
 
   private boolean stored;
@@ -69,7 +69,7 @@ public class FieldType implements IndexableFieldType {
     // Do not copy frozen!
   }
 
-  /** Create a new FieldType with default properties. */
+  /** 创建一个默认属性的 FieldType 。 */
   public FieldType() {}
 
   /**
@@ -83,8 +83,7 @@ public class FieldType implements IndexableFieldType {
   }
 
   /**
-   * Prevents future changes. Note, it is recommended that this is called once the FieldTypes's
-   * properties have been set, to prevent unintentional state changes.
+   * 阻止后续的变更。 注意，建议设置完 FieldType 的属性后调用这个方法, 防止无意的状态变化。
    */
   public void freeze() {
     this.frozen = true;
@@ -93,7 +92,7 @@ public class FieldType implements IndexableFieldType {
   /**
    * {@inheritDoc}
    *
-   * <p>The default is <code>false</code>.
+   * <p>默认值 <code>false</code>。
    *
    * @see #setStored(boolean)
    */
@@ -103,10 +102,10 @@ public class FieldType implements IndexableFieldType {
   }
 
   /**
-   * Set to <code>true</code> to store this field.
+   * 设置为 <code>true</code> 以存储这个字段。
    *
    * @param value true if this field should be stored.
-   * @throws IllegalStateException if this FieldType is frozen against future modifications.
+   * @throws IllegalStateException 如果 FieldType 被冻结，防止后续的修改。
    * @see #stored()
    */
   public void setStored(boolean value) {
@@ -117,7 +116,7 @@ public class FieldType implements IndexableFieldType {
   /**
    * {@inheritDoc}
    *
-   * <p>The default is <code>true</code>.
+   * <p>默认值 <code>true</code>.
    *
    * @see #setTokenized(boolean)
    */
@@ -127,10 +126,10 @@ public class FieldType implements IndexableFieldType {
   }
 
   /**
-   * Set to <code>true</code> to tokenize this field's contents via the configured {@link Analyzer}.
+   * 设置为 <code>true</code> 可以通过 {@link Analyzer} 对这个字段的内容进行分词。
    *
-   * @param value true if this field should be tokenized.
-   * @throws IllegalStateException if this FieldType is frozen against future modifications.
+   * @param value 如果这个字段需要分词，设置为 true 。
+   * @throws IllegalStateException 如果 FieldType 被冻结，防止后续的修改。
    * @see #tokenized()
    */
   public void setTokenized(boolean value) {
@@ -141,7 +140,7 @@ public class FieldType implements IndexableFieldType {
   /**
    * {@inheritDoc}
    *
-   * <p>The default is <code>false</code>.
+   * <p>默认值 <code>false</code>.
    *
    * @see #setStoreTermVectors(boolean)
    */
@@ -262,7 +261,7 @@ public class FieldType implements IndexableFieldType {
   /**
    * {@inheritDoc}
    *
-   * <p>The default is {@link IndexOptions#DOCS_AND_FREQS_AND_POSITIONS}.
+   * <p>默认值 {@link IndexOptions#DOCS_AND_FREQS_AND_POSITIONS}.
    *
    * @see #setIndexOptions(IndexOptions)
    */
@@ -272,9 +271,9 @@ public class FieldType implements IndexableFieldType {
   }
 
   /**
-   * Sets the indexing options for the field:
+   * 设置这个字段的索引选项
    *
-   * @param value indexing options
+   * @param value 索引选项
    * @throws IllegalStateException if this FieldType is frozen against future modifications.
    * @see #indexOptions()
    */

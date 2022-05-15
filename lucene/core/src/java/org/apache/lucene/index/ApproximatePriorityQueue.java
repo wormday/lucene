@@ -22,18 +22,19 @@ import java.util.ListIterator;
 import java.util.function.Predicate;
 
 /**
- * An approximate priority queue, which attempts to poll items by decreasing log of the weight,
+ * 近似优先队列, which attempts to poll items by decreasing log of the weight,
  * though exact ordering is not guaranteed. This class doesn't support null elements.
  */
 final class ApproximatePriorityQueue<T> {
 
-  // Indexes between 0 and 63 are sparsely populated, and indexes that are
+  // 0到63之间的索引是稀疏填充的, and indexes that are
   // greater than or equal to 64 are densely populated
   // Items close to the beginning of this list are more likely to have a
   // higher weight.
   private final List<T> slots = new ArrayList<>(Long.SIZE);
 
-  // A bitset where ones indicate that the corresponding index in `slots` is taken.
+  // 一个bitset，其中的1表示在' slots '中对应的索引已被占用。
+  // long 64个bit，所以可以表示64个槽位
   private long usedSlots = 0L;
 
   ApproximatePriorityQueue() {
@@ -42,22 +43,21 @@ final class ApproximatePriorityQueue<T> {
     }
   }
 
-  /** Add an entry to this queue that has the provided weight. */
+  /** 在队列中添加一个包含优先级的条目。 */
   void add(T entry, long weight) {
     assert entry != null;
-
-    // The expected slot of an item is the number of leading zeros of its weight,
-    // ie. the larger the weight, the closer an item is to the start of the array.
+    // 期望的槽位是这个权重前导0的个数。
+    // 比如：权重越大，项就越接近数组的开头。
     final int expectedSlot = Long.numberOfLeadingZeros(weight);
 
-    // If the slot is already taken, we look for the next one that is free.
-    // The above bitwise operation is equivalent to looping over slots until finding one that is
-    // free.
+    // 如果这个槽位被占用，则寻找下一个
+    // 上面的位操作相当于循环遍历槽，直到找到空闲的槽。
     final long freeSlots = ~usedSlots;
     final int destinationSlot =
         expectedSlot + Long.numberOfTrailingZeros(freeSlots >>> expectedSlot);
     assert destinationSlot >= expectedSlot;
     if (destinationSlot < Long.SIZE) {
+      // 在usedSlots中新占用的slot的位置位1
       usedSlots |= 1L << destinationSlot;
       T previous = slots.set(destinationSlot, entry);
       assert previous == null;
@@ -72,7 +72,7 @@ final class ApproximatePriorityQueue<T> {
    * free entries are available.
    */
   T poll(Predicate<T> predicate) {
-    // Look at indexes 0..63 first, which are sparsely populated.
+    // 先查看索引0到63, 这一部分是稀疏的。
     int nextSlot = 0;
     do {
       final int nextUsedSlot = nextSlot + Long.numberOfTrailingZeros(usedSlots >>> nextSlot);

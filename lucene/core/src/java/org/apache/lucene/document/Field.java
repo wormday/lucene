@@ -29,11 +29,10 @@ import org.apache.lucene.index.IndexableFieldType;
 import org.apache.lucene.util.BytesRef;
 
 /**
- * Expert: directly create a field for a document. Most users should use one of the sugar
- * subclasses:
+ * Expert: 直接给文档创建一个字段。 大多数用户应该选择一个更好用的子类:
  *
  * <ul>
- *   <li>{@link TextField}: {@link Reader} or {@link String} indexed for full-text search
+ *   <li>{@link TextField}: {@link Reader} 或 {@link String} 为全文搜索做索引
  *   <li>{@link StringField}: {@link String} indexed verbatim as a single token
  *   <li>{@link IntPoint}: {@code int} indexed for exact/range queries.
  *   <li>{@link LongPoint}: {@code long} indexed for exact/range queries.
@@ -227,7 +226,7 @@ public class Field implements IndexableField {
    *     type is neither indexed() nor stored(), or if indexed() is false but storeTermVectors() is
    *     true.
    */
-  public Field(String name, CharSequence value, IndexableFieldType type) {
+  public  Field(String name, CharSequence value, IndexableFieldType type) {
     if (name == null) {
       throw new IllegalArgumentException("name must not be null");
     }
