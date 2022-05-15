@@ -24,7 +24,7 @@ import org.apache.lucene.search.ScoreDoc; // for javadoc
 import org.apache.lucene.util.BytesRef;
 
 /**
- * Documents are the unit of indexing and search.
+ * 文档是索引和搜索的单位。
  *
  * <p>A Document is a set of fields. Each field has a name and a textual value. A field may be
  * {@link org.apache.lucene.index.IndexableFieldType#stored() stored} with the document, in which
@@ -39,7 +39,7 @@ public final class Document implements Iterable<IndexableField> {
 
   private final List<IndexableField> fields = new ArrayList<>();
 
-  /** Constructs a new document with no fields. */
+  /** 构造一个不带字段的新文档。 */
   public Document() {}
 
   @Override
@@ -48,27 +48,22 @@ public final class Document implements Iterable<IndexableField> {
   }
 
   /**
-   * Adds a field to a document. Several fields may be added with the same name. In this case, if
-   * the fields are indexed, their text is treated as though appended for the purposes of search.
+   * 给文档添加一个字段。 字段的名称可以相同。
+   * 在这种情况下，如果对字段进行索引，则将它们的文本视为用于搜索的附加文本 .
    *
    * <p>Note that add like the removeField(s) methods only makes sense prior to adding a document to
-   * an index. These methods cannot be used to change the content of an existing index! In order to
-   * achieve this, a document has to be deleted from an index and a new changed version of that
-   * document has to be added.
+   * an index. 这些方法不能够用来更改已存在索引的内容! 如果要实现这个功能, 文档必须从索引中删除， 然后添加一个新版本的文档。
    */
   public final void add(IndexableField field) {
     fields.add(field);
   }
 
   /**
-   * Removes field with the specified name from the document. If multiple fields exist with this
-   * name, this method removes the first field that has been added. If there is no field with the
-   * specified name, the document remains unchanged.
+   * 从文档中移除指定名称的字段。 如果有这个名称的字段有多个，此方法将删除第一个。 如果没有这个名字的字段， 文档保持不变。
    *
    * <p>Note that the removeField(s) methods like the add method only make sense prior to adding a
-   * document to an index. These methods cannot be used to change the content of an existing index!
-   * In order to achieve this, a document has to be deleted from an index and a new changed version
-   * of that document has to be added.
+   * document to an index。
+   * 这些方法不能够用来更改已存在索引的内容! 如果要实现这个功能, 文档必须从索引中删除， 然后添加一个新版本的文档。
    */
   public final void removeField(String name) {
     Iterator<IndexableField> it = fields.iterator();
@@ -82,13 +77,11 @@ public final class Document implements Iterable<IndexableField> {
   }
 
   /**
-   * Removes all fields with the given name from the document. If there is no field with the
-   * specified name, the document remains unchanged.
+   * 从文档中所有指定名称的字段。 如果没有这个名字的字段， 文档保持不变。
    *
    * <p>Note that the removeField(s) methods like the add method only make sense prior to adding a
-   * document to an index. These methods cannot be used to change the content of an existing index!
-   * In order to achieve this, a document has to be deleted from an index and a new changed version
-   * of that document has to be added.
+   * document to an index.
+   * 这些方法不能够用来更改已存在索引的内容! 如果要实现这个功能, 文档必须从索引中删除， 然后添加一个新版本的文档。
    */
   public final void removeFields(String name) {
     Iterator<IndexableField> it = fields.iterator();
@@ -102,10 +95,9 @@ public final class Document implements Iterable<IndexableField> {
 
   /**
    * Returns an array of byte arrays for of the fields that have the name specified as the method
-   * parameter. This method returns an empty array when there are no matching fields. It never
-   * returns null.
+   * parameter. 没有相应的字段时将返回空数组。 这个方法不会返回 null。
    *
-   * @param name the name of the field
+   * @param name 字段名
    * @return a <code>BytesRef[]</code> of binary field values
    */
   public final BytesRef[] getBinaryValues(String name) {
@@ -243,7 +235,7 @@ public final class Document implements Iterable<IndexableField> {
     return buffer.toString();
   }
 
-  /** Removes all the fields from document. */
+  /** 删除文档中的所有字段 */
   public void clear() {
     fields.clear();
   }

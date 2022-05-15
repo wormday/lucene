@@ -20,9 +20,9 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.util.BytesRef;
 
 /**
- * A field that is indexed but not tokenized: the entire String value is indexed as a single token.
- * For example this might be used for a 'country' field or an 'id' field. If you also need to sort
- * on this field, separately add a {@link SortedDocValuesField} to your document.
+ * 一个索引但不分词的字段: 整个字符串按照单个词索引。
+ * 比如它可以用于国家 'country' 或者 'id' 字段。 如果你打算在这个字段上排序，
+ * 在你的文档上再加上一个 {@link SortedDocValuesField} 。
  */
 public final class StringField extends Field {
 
@@ -46,26 +46,25 @@ public final class StringField extends Field {
   }
 
   /**
-   * Creates a new textual StringField, indexing the provided String value as a single token.
+   * 创建一个新的文本型字符串字段, 索引时将提供的字符串作为单个词。
    *
-   * @param name field name
-   * @param value String value
-   * @param stored Store.YES if the content should also be stored
-   * @throws IllegalArgumentException if the field name or value is null.
+   * @param name 字段名称
+   * @param value 字符串值
+   * @param stored 如果内容需要被存储，传入 Store.YES
+   * @throws IllegalArgumentException 如果字段名和值为空
    */
   public StringField(String name, String value, Store stored) {
     super(name, value, stored == Store.YES ? TYPE_STORED : TYPE_NOT_STORED);
   }
 
   /**
-   * Creates a new binary StringField, indexing the provided binary (BytesRef) value as a single
-   * token.
+   * 创建一个新的二进制型字符串字段, 索引时将提供的二进制值 (BytesRef) 作为单个词。
    *
-   * @param name field name
+   * @param name 字段名称
    * @param value BytesRef value. The provided value is not cloned so you must not change it until
    *     the document(s) holding it have been indexed.
-   * @param stored Store.YES if the content should also be stored
-   * @throws IllegalArgumentException if the field name or value is null.
+   * @param stored 如果内容需要被存储，传入 Store.YES
+   * @throws IllegalArgumentException 如果字段名和值为空
    */
   public StringField(String name, BytesRef value, Store stored) {
     super(name, value, stored == Store.YES ? TYPE_STORED : TYPE_NOT_STORED);

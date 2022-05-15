@@ -24,14 +24,13 @@ import org.apache.lucene.util.BytesRef;
 // TODO: how to handle versioning here...?
 
 /**
- * Represents a single field for indexing. IndexWriter consumes Iterable&lt;IndexableField&gt; as a
- * document.
+ * 表示用于索引的单个字段。 IndexWriter 把 Iterable&lt;IndexableField&gt; 当做一个文档。
  *
  * @lucene.experimental
  */
 public interface IndexableField {
 
-  /** Field name */
+  /** 字段名称 */
   public String name();
 
   /** {@link IndexableFieldType} describing the properties of this field. */
