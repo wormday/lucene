@@ -387,7 +387,7 @@ final class DocumentsWriter implements Closeable, Accountable {
     while (flushControl.anyStalledThreads()
         || (flushControl.numQueuedFlushes() > 0 && config.checkPendingFlushOnUpdate)) {
       // Help out flushing any queued DWPTs so we can un-stall:
-      // Try pick up pending threads here if possible
+      // 如果可能的话，尝试在获取挂起的线程
       DocumentsWriterPerThread flushingDWPT;
       while ((flushingDWPT = flushControl.nextPendingFlush()) != null) {
         // Don't push the delete here since the update could fail!
@@ -418,7 +418,6 @@ final class DocumentsWriter implements Closeable, Accountable {
       final DocumentsWriterDeleteQueue.Node<?> delNode)
       throws IOException {
     boolean hasEvents = preUpdate();
-
     final DocumentsWriterPerThread dwpt = flushControl.obtainAndLock();
     final DocumentsWriterPerThread flushingDWPT;
     long seqNo;

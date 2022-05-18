@@ -345,6 +345,7 @@ public final class FieldInfo {
     if (pointDimensionCount1 != pointDimensionCount2
         || indexDimensionCount1 != indexDimensionCount2
         || numBytes1 != numBytes2) {
+      // 如果同名字段 类型不一致等情况 会抛这个异常
       throw new IllegalArgumentException(
           "cannot change field \""
               + fieldName

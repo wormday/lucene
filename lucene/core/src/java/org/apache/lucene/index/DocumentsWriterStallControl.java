@@ -35,17 +35,22 @@ import org.apache.lucene.util.ThreadInterruptedException;
  */
 final class DocumentsWriterStallControl {
 
+  // 是否停滞
   private volatile boolean stalled;
+
   private int numWaiting; // only with assert
   private boolean wasStalled; // only with assert
+
+  // 注意点：这里用的是 IdentityHashMap 与 HashMap不同，HashMap使用的是 对象的hashCode 做的散列，然后再根据==判断是否相同
+  // IdentityHashMap 使用的是System.identityHashCode(obj)
+  // 如果把Thread当成key，两者好像没有什么不同
   private final Map<Thread, Boolean> waiting = new IdentityHashMap<>(); // only with assert
 
   /**
-   * Update the stalled flag status. This method will set the stalled flag to <code>true</code> iff
-   * the number of flushing {@link DocumentsWriterPerThread} is greater than the number of active
-   * {@link DocumentsWriterPerThread}. Otherwise it will reset the {@link
-   * DocumentsWriterStallControl} to healthy and release all threads waiting on {@link
-   * #waitIfStalled()}
+   * 更新停滞状态。 当且仅当正在刷新的 {@link DocumentsWriterPerThread} 数量大于活动数量的
+   * {@link DocumentsWriterPerThread} 这个方法将 stalled 更新为 <code>true</code> ，
+   * 否则他将重置 {@link DocumentsWriterStallControl} 为健康状态
+   * 并且释放所有等待 {@link #waitIfStalled()} 的线程
    */
   synchronized void updateStalled(boolean stalled) {
     if (this.stalled != stalled) {
@@ -57,7 +62,7 @@ final class DocumentsWriterStallControl {
     }
   }
 
-  /** Blocks if documents writing is currently in a stalled state. */
+  /** 如果文档写入当前处于停滞状态，则阻塞。 */
   void waitIfStalled() {
     if (stalled) {
       synchronized (this) {

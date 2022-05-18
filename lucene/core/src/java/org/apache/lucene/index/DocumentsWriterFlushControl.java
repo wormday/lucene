@@ -30,13 +30,13 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
- * This class controls {@link DocumentsWriterPerThread} flushing during indexing. It tracks the
- * memory consumption per {@link DocumentsWriterPerThread} and uses a configured {@link FlushPolicy}
- * to decide if a {@link DocumentsWriterPerThread} must flush.
+ * 这个类控制索引期间的 {@link DocumentsWriterPerThread} 刷新(flushing)操作。
+ * 它跟踪每个 {@link DocumentsWriterPerThread} 的内存消耗，并根据配置 {@link FlushPolicy}
+ * 来决定 {@link DocumentsWriterPerThread} 是否必须(flush)刷新.
  *
- * <p>In addition to the {@link FlushPolicy} the flush control might set certain {@link
- * DocumentsWriterPerThread} as flush pending iff a {@link DocumentsWriterPerThread} exceeds the
- * {@link IndexWriterConfig#getRAMPerThreadHardLimitMB()} to prevent address space exhaustion.
+ * <p>除了 {@link FlushPolicy}， flush控制器会把某些 {@link DocumentsWriterPerThread}
+ * 设置为 flush pending，如果 {@link DocumentsWriterPerThread} 占用内存超出了
+ * {@link IndexWriterConfig#getRAMPerThreadHardLimitMB()} 以防止地址空间耗尽。
  */
 final class DocumentsWriterFlushControl implements Accountable, Closeable {
   private final long hardMaxBytesPerDWPT;

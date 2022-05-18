@@ -35,10 +35,9 @@ import org.apache.lucene.util.SetOnce.AlreadySetException;
 import org.apache.lucene.util.Version;
 
 /**
- * Holds all the configuration that is used to create an {@link IndexWriter}. Once {@link
- * IndexWriter} has been created with this object, changes to this object will not affect the {@link
- * IndexWriter} instance. For that, use {@link LiveIndexWriterConfig} that is returned from {@link
- * IndexWriter#getConfig()}.
+ * 保存用于创建 {@link IndexWriter} 的所有配置。 一旦使用该对象创建了 {@link IndexWriter} ,
+ * 对该对象的更改将不会影响 {@link IndexWriter} 实例。
+ * 为此， 使用从 {@link IndexWriter#getConfig()} 返回的 {@link LiveIndexWriterConfig}。
  *
  * <p>All setter methods return {@link IndexWriterConfig} to allow chaining settings conveniently,
  * for example:

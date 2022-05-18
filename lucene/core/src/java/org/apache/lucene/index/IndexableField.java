@@ -37,15 +37,13 @@ public interface IndexableField {
   public IndexableFieldType fieldType();
 
   /**
-   * Creates the TokenStream used for indexing this field. If appropriate, implementations should
-   * use the given Analyzer to create the TokenStreams.
+   * 创建用于索引该字段的 TokenStream。 如果有的话, 将使用给定的分词器生成 TokenStreams.
    *
-   * @param analyzer Analyzer that should be used to create the TokenStreams from
+   * @param analyzer 分词器 用于创建 TokenStreams
    * @param reuse TokenStream for a previous instance of this field <b>name</b>. This allows custom
    *     field types (like StringField and NumericField) that do not use the analyzer to still have
-   *     good performance. Note: the passed-in type may be inappropriate, for example if you mix up
-   *     different types of Fields for the same field name. So it's the responsibility of the
-   *     implementation to check.
+   *     good performance. Note: 传入的类型可能并不合适, 比如你给同名字段使用了多种不同的字段类型
+   *     因此，检查是实现的责任.
    * @return TokenStream value for indexing the document. Should always return a non-null value if
    *     the field is to be indexed
    */

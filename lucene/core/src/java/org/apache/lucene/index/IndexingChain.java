@@ -571,9 +571,9 @@ final class IndexingChain implements Accountable {
   }
 
   void processDocument(int docID, Iterable<? extends IndexableField> document) throws IOException {
-    // number of unique fields by names (collapses multiple field instances by the same name)
+    // 按名称聚合的字段数量 (相同名称的折叠)
     int fieldCount = 0;
-    int indexedFieldCount = 0; // number of unique fields indexed with postings
+    int indexedFieldCount = 0; // 唯一字段数量
     long fieldGen = nextFieldGen++;
     int docFieldIdx = 0;
 
@@ -590,13 +590,18 @@ final class IndexingChain implements Accountable {
       // build schema for each unique doc field
       for (IndexableField field : document) {
         IndexableFieldType fieldType = field.fieldType();
+        // 如果有相同字段，拿出来的是老得 pf 如果没有，获取到的是新的 pf
         PerField pf = getOrAddPerField(field.name(), fieldType);
+        // 新生成的字段是 -1
         if (pf.fieldGen != fieldGen) { // first time we see this field in this document
           fields[fieldCount++] = pf;
           pf.fieldGen = fieldGen;
           pf.reset(docID);
         }
-        if (docFieldIdx >= docFields.length) oversizeDocFields();
+        if (docFieldIdx >= docFields.length) {
+          oversizeDocFields();
+        }
+        // 同名字段,docFields的索引不同，但是值是一样的
         docFields[docFieldIdx++] = pf;
         updateDocFieldSchema(field.name(), pf.schema, fieldType);
       }
@@ -774,10 +779,12 @@ final class IndexingChain implements Accountable {
     final int hashPos = fieldName.hashCode() & hashMask;
     PerField pf = fieldHash[hashPos];
     while (pf != null && pf.fieldName.equals(fieldName) == false) {
+      // hash相同，但是字段名不同，顺着链继续往下找
       pf = pf.next;
     }
+    // 如果找不到（包括hash没匹配，或者通过.next没找到）
     if (pf == null) {
-      // first time we encounter field with this name in this segment
+      // 第一次在这个段中遇到这个名称的字段
       FieldSchema schema = new FieldSchema(fieldName);
       pf =
           new PerField(
@@ -787,8 +794,11 @@ final class IndexingChain implements Accountable {
               indexWriterConfig.getSimilarity(),
               indexWriterConfig.getInfoStream(),
               indexWriterConfig.getAnalyzer());
+      // 如果原来的hash匹配的有值，则接到当前节点的next,如果没有next自然为null
       pf.next = fieldHash[hashPos];
+      // 当前hash 指向这个pf
       fieldHash[hashPos] = pf;
+      // 总的字段数量+1
       totalFieldCount++;
       // At most 50% load factor:
       if (totalFieldCount >= fieldHash.length / 2) {
@@ -1141,13 +1151,9 @@ final class IndexingChain implements Accountable {
 
         while (stream.incrementToken()) {
 
-          // If we hit an exception in stream.next below
-          // (which is fairly common, e.g. if analyzer
-          // chokes on a given document), then it's
-          // non-aborting and (above) this one document
-          // will be marked as deleted, but still
-          // consume a docID
-
+          // 如果在下面的stream.next 发生异常
+          // (这比较常见, 比如，分词器在给定的文档上卡主), 那么不会终止，
+          // 这个文档被标记为已删除，并且依旧消费一个 docID
           int posIncr = invertState.posIncrAttribute.getPositionIncrement();
           invertState.position += posIncr;
           if (invertState.position < invertState.lastPosition) {

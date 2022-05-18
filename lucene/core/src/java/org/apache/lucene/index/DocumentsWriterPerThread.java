@@ -240,6 +240,7 @@ final class DocumentsWriterPerThread implements Accountable {
           try {
             indexingChain.processDocument(numDocsInRAM++, doc);
           } finally {
+            // DocumentsWriter的numDocsInRAM自增1
             onNewDocOnRAM.run();
           }
         }

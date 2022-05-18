@@ -158,9 +158,7 @@ public final class ArrayUtil {
     int extra = minTargetSize >> 3;
 
     if (extra < 3) {
-      // for very small arrays, where constant overhead of
-      // realloc is presumably relatively high, we grow
-      // faster
+      // 对于非常小的数组，realloc的常量开销可能相对较高，我们增长得更快
       extra = 3;
     }
 

@@ -25,9 +25,8 @@ import org.apache.lucene.util.Counter;
 import org.apache.lucene.util.IntBlockPool;
 
 /**
- * This class is passed each token produced by the analyzer on each field during indexing, and it
- * stores these tokens in a hash table, and allocates separate byte streams per token. Consumers of
- * this class, eg {@link FreqProxTermsWriter} and {@link TermVectorsConsumer}, write their own byte
+ * 在索引期间，分词器生成的 token 都被传入这个类， 并将这些 token 存储哈希表中, 每个token 分配一个单独的字节流。
+ * 此类的消费者, 比如 {@link FreqProxTermsWriter} 和 {@link TermVectorsConsumer}, write their own byte
  * streams under each term.
  */
 abstract class TermsHash {
