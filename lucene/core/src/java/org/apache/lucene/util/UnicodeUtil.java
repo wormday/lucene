@@ -199,7 +199,6 @@ public final class UnicodeUtil {
     int upto = outOffset;
     for (int i = offset; i < end; i++) {
       final int code = (int) s.charAt(i);
-
       if (code < 0x80) out[upto++] = (byte) code;
       else if (code < 0x800) {
         out[upto++] = (byte) (0xC0 | (code >> 6));

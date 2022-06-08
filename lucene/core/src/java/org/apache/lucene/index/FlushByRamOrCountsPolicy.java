@@ -17,7 +17,7 @@
 package org.apache.lucene.index;
 
 /**
- * Default {@link FlushPolicy} implementation that flushes new segments based on RAM used and
+ * 默认的{@link FlushPolicy}实现， that flushes new segments based on RAM used and
  * document count depending on the IndexWriter's {@link IndexWriterConfig}. It also applies pending
  * deletes based on the number of buffered delete terms.
  *
@@ -46,6 +46,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
 
   @Override
   public void onDelete(DocumentsWriterFlushControl control, DocumentsWriterPerThread perThread) {
+    // 因为 getRAMBufferSizeMB = -1 表示关闭，所以先判断 getDeleteBytesUsed()！=-1
     if ((flushOnRAM()
         && control.getDeleteBytesUsed() > 1024 * 1024 * indexWriterConfig.getRAMBufferSizeMB())) {
       control.setApplyAllDeletes();
@@ -62,6 +63,7 @@ class FlushByRamOrCountsPolicy extends FlushPolicy {
 
   @Override
   public void onInsert(DocumentsWriterFlushControl control, DocumentsWriterPerThread perThread) {
+    // 因为 getMaxBufferedDocs = -1 表示关闭，所以先判断 getMaxBufferedDocs()！=-1
     if (flushOnDocCount()
         && perThread.getNumDocsInRAM() >= indexWriterConfig.getMaxBufferedDocs()) {
       // Flush this state by num docs

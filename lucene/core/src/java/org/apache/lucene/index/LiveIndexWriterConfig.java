@@ -334,8 +334,7 @@ public class LiveIndexWriterConfig {
   }
 
   /**
-   * Returns the max amount of memory each {@link DocumentsWriterPerThread} can consume until
-   * forcefully flushed.
+   * 强制刷新前，每个 {@link DocumentsWriterPerThread} 能消耗的最大内存量。
    *
    * @see IndexWriterConfig#setRAMPerThreadHardLimitMB(int)
    */
@@ -419,6 +418,11 @@ public class LiveIndexWriterConfig {
   }
 
   /**
+   * 专家： 设置索引线程是否在更新时检查挂起的刷新，以帮助我们将索引缓冲区刷新到磁盘。
+   * 因此，调用{@link DirectoryReader#openIfChanged(DirectoryReader, IndexWriter)}或{@link IndexWriter#flush()}的线程
+   * 将是唯一将段写入磁盘的线程，除非刷新延迟。
+   * 如果索引过程由于太多挂起的刷新而停滞，那么索引线程将帮助我们将挂起的段刷新写入磁盘。
+   *
    * Expert: sets if indexing threads check for pending flushes on update in order to help our
    * flushing indexing buffers to disk. As a consequence, threads calling {@link
    * DirectoryReader#openIfChanged(DirectoryReader, IndexWriter)} or {@link IndexWriter#flush()}

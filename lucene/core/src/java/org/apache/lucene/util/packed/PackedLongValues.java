@@ -23,7 +23,7 @@ import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.LongValues;
 import org.apache.lucene.util.RamUsageEstimator;
 
-/** Utility class to compress integers into a {@link LongValues} instance. */
+/** 将整数压缩到 {@link LongValues} 实例的工具类。 */
 public class PackedLongValues extends LongValues implements Accountable {
 
   private static final long BASE_RAM_BYTES_USED =

@@ -63,7 +63,8 @@ public abstract class DataOutput {
   public abstract void writeBytes(byte[] b, int offset, int length) throws IOException;
 
   /**
-   * Writes an int as four bytes (LE byte order).
+   * 使用四个字节写入一个int (LE byte order).
+   * Little-Endian就是低位字节排放在内存的低地址端，高位字节排放在内存的高地址端
    *
    * @see DataInput#readInt()
    * @see BitUtil#VH_LE_INT
@@ -87,14 +88,14 @@ public abstract class DataOutput {
   }
 
   /**
-   * Writes an int in a variable-length format. Writes between one and five bytes. Smaller values
-   * take fewer bytes. Negative numbers are supported, but should be avoided.
-   *
-   * <p>VByte is a variable-length format for positive integers is defined where the high-order bit
-   * of each byte indicates whether more bytes remain to be read. The low-order seven bits are
-   * appended as increasingly more significant bits in the resulting integer value. Thus values from
-   * zero to 127 may be stored in a single byte, values from 128 to 16,383 may be stored in two
-   * bytes, and so on.
+   * 以变长格式写入整型数。写入1到5个字节。较小的值占用更少的字节。支持负数，但应避免使用负数。
+   * 0(0x0) - 127(0x7f) 1个字节
+   * 128(0x80) - 16383(0x3fff) 2个字节
+   * 16384(0x4000) - 2097151(0x1fffff) 3个字节
+   * 2097152(0x200000) - 268435455(0x0fffffff) 4个字节
+   * 268435456(0x10000000) - 2147483647(0x7fffffff) 5字节
+   * VByte是一种定义为正整数的变长格式，其中每个字节的最高位表示是否还有更多字节需要读取（0表示当前字节是最后一个字节，1表示后边还有字节）
+   * 低阶的7位将整数值从低到高位被依次添加。
    *
    * <p>VByte Encoding Example
    *
@@ -190,16 +191,19 @@ public abstract class DataOutput {
    *
    * <p>This provides compression while still being efficient to decode.
    *
-   * @param i Smaller values take fewer bytes. Negative numbers are supported, but should be
-   *     avoided.
+   * @param i 较小的值占用更少的字节。 支持负数，但应避免使用负数。
    * @throws IOException If there is an I/O error writing to the underlying medium.
    * @see DataInput#readVInt()
    */
   public final void writeVInt(int i) throws IOException {
     while ((i & ~0x7F) != 0) {
+      // 如果i除了后七位仍然包含1
+      // 截取后7位，然后第一位置1，保存这个字节
       writeByte((byte) ((i & 0x7F) | 0x80));
+      // 右移7位
       i >>>= 7;
     }
+    // 最高位的字节写在最后
     writeByte((byte) i);
   }
 
@@ -261,10 +265,9 @@ public abstract class DataOutput {
   }
 
   /**
-   * Writes a string.
+   * 写入字符串
    *
-   * <p>Writes strings as UTF-8 encoded bytes. First the length, in bytes, is written as a {@link
-   * #writeVInt VInt}, followed by the bytes.
+   * <p>已UTF-8编码写入字符串。 最开始是 {@link #writeVInt VInt}格式的长度，然后是字节.
    *
    * @see DataInput#readString()
    */

@@ -21,21 +21,21 @@ import java.util.Map;
 import org.apache.lucene.util.ThreadInterruptedException;
 
 /**
- * Controls the health status of a {@link DocumentsWriter} sessions. This class used to block
- * incoming indexing threads if flushing significantly slower than indexing to ensure the {@link
- * DocumentsWriter}s healthiness. If flushing is significantly slower than indexing the net memory
- * used within an {@link IndexWriter} session can increase very quickly and easily exceed the JVM's
- * available memory.
+ * 控制 {@link DocumentsWriter} 的健康状态。如果刷新速度明显慢于索引速度，这个类将阻塞索引线程，以确保{@link DocumentsWriter}
+ * 的健康。如果刷新的速度明显慢于索引，则{@link IndexWriter} 的内存使用将很快突破JVM的限制。
  *
+ * 为了避免OOM确保IndexWriter的稳定，
  * <p>To prevent OOM Errors and ensure IndexWriter's stability this class blocks incoming threads
  * from indexing once 2 x number of available {@link DocumentsWriterPerThread}s in {@link
- * DocumentsWriterPerThreadPool} is exceeded. Once flushing catches up and the number of flushing
+ * DocumentsWriterPerThreadPool} is exceeded.
+ *
+ * Once flushing catches up and the number of flushing
  * DWPT is equal or lower than the number of active {@link DocumentsWriterPerThread}s threads are
  * released and can continue indexing.
  */
 final class DocumentsWriterStallControl {
 
-  // 是否停滞
+  // 是否停滞，所有线程都可见，所以 volatile
   private volatile boolean stalled;
 
   private int numWaiting; // only with assert

@@ -45,7 +45,10 @@ class StoredFieldsConsumer {
   protected void initStoredFieldsWriter() throws IOException {
     if (writer
         == null) { // TODO can we allocate this in the ctor? we call start document for every doc
-      // anyway
+      // 默认构造 StoredFieldsFormat -> Lucene90CompressingStoredFieldsFormat
+      // 默认构造 StoredFieldsWriter -> Lucene90CompressingStoredFieldsWriter
+      // 构造 Lucene90CompressingStoredFieldsWriter 的时候，会生成四个文件
+      // _0.fdm,_0.fdt,_0_Lucene90FieldsIndex-doc_ids_0.tmp,_0_Lucene90FieldsIndexfile_pointers_1.tmp
       this.writer = codec.storedFieldsFormat().fieldsWriter(directory, info, IOContext.DEFAULT);
       accountable = writer;
     }
@@ -53,18 +56,23 @@ class StoredFieldsConsumer {
 
   void startDocument(int docID) throws IOException {
     assert lastDoc < docID;
+    // 初始化了Writer, 但是放这个地方也不合适
     initStoredFieldsWriter();
+    // 为什么这里还有可能循环处理？
     while (++lastDoc < docID) {
       writer.startDocument();
       writer.finishDocument();
     }
+    // 这里什么都没有做
     writer.startDocument();
   }
 
+  // 每个文档的每个字段调用一次
   void writeField(FieldInfo info, IndexableField field) throws IOException {
     writer.writeField(info, field);
   }
 
+  // 每个文档调用一次
   void finishDocument() throws IOException {
     writer.finishDocument();
   }

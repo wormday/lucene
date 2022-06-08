@@ -63,13 +63,14 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
   /** Codec name for the index. */
   public static final String INDEX_CODEC_NAME = "Lucene90FieldsIndex";
 
+  /**存储的字段类型**/
   static final int STRING = 0x00;
   static final int BYTE_ARR = 0x01;
   static final int NUMERIC_INT = 0x02;
   static final int NUMERIC_FLOAT = 0x03;
   static final int NUMERIC_LONG = 0x04;
   static final int NUMERIC_DOUBLE = 0x05;
-
+  /** 如果存储字段类型 需要的bit数量，目前是3 **/
   static final int TYPE_BITS = PackedInts.bitsRequired(NUMERIC_DOUBLE);
   static final int TYPE_MASK = (int) PackedInts.maxValue(TYPE_BITS);
 
@@ -79,6 +80,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
 
   private final String segment;
   private FieldsIndexWriter indexWriter;
+  // 分别对应: _0.fdm, _0.fdt 这两个文件
   private IndexOutput metaStream, fieldsStream;
 
   private Compressor compressor;
@@ -87,11 +89,15 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
   private final int maxDocsPerChunk;
 
   private final ByteBuffersDataOutput bufferedDocs;
+  // 每个文档id对应的storedFields数量
   private int[] numStoredFields; // number of stored fields
+  // 每个文档id在bufferedDocs中的结束点的偏移
   private int[] endOffsets; // end offsets in bufferedDocs
   private int docBase; // doc ID at the beginning of the chunk
+  // 每buffer一篇文档+1
   private int numBufferedDocs; // docBase + numBufferedDocs == current doc ID
 
+  // 执行一次flush+1，merge也会更改
   private long numChunks;
   private long numDirtyChunks; // number of incomplete compressed blocks written
   private long numDirtyDocs; // cumulative number of missing docs in incomplete chunks
@@ -122,6 +128,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
 
     boolean success = false;
     try {
+      // 生成 _0.fdm
       metaStream =
           directory.createOutput(
               IndexFileNames.segmentFileName(segment, segmentSuffix, META_EXTENSION), context);
@@ -130,6 +137,7 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
       assert CodecUtil.indexHeaderLength(INDEX_CODEC_NAME + "Meta", segmentSuffix)
           == metaStream.getFilePointer();
 
+      // 生成 _0.fdt
       fieldsStream =
           directory.createOutput(
               IndexFileNames.segmentFileName(segment, segmentSuffix, FIELDS_EXTENSION), context);
@@ -176,6 +184,9 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
   @Override
   public void startDocument() throws IOException {}
 
+  /**
+   * 结束一个文档的写入
+   */
   @Override
   public void finishDocument() throws IOException {
     if (numBufferedDocs == this.numStoredFields.length) {
@@ -183,9 +194,12 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
       this.numStoredFields = ArrayUtil.growExact(this.numStoredFields, newLength);
       endOffsets = ArrayUtil.growExact(endOffsets, newLength);
     }
+    // 每个文档id对应的StoredFields数量
     this.numStoredFields[numBufferedDocs] = numStoredFieldsInDoc;
     numStoredFieldsInDoc = 0;
+    // 每个文档id在bufferedDocs中的结束点的偏移
     endOffsets[numBufferedDocs] = Math.toIntExact(bufferedDocs.size());
+    // 处理一个文档，加一
     ++numBufferedDocs;
     if (triggerFlush()) {
       flush(false);
@@ -270,9 +284,15 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
     bufferedDocs.reset();
   }
 
+  /**
+   * 数据暂时写入 bufferedDocs,等到flush的时候，压缩后再存入fieldsStream (_0.fdt文件)
+   * 从info中获取字段字段 number 和 类型
+   * 写入的内容为 [number(29bit) 类型(3bit) 共同压缩为一个Vlong][值]
+   */
   @Override
   public void writeField(FieldInfo info, IndexableField field) throws IOException {
 
+    // 每个文档重新计数
     ++numStoredFieldsInDoc;
 
     int bits = 0;
@@ -311,15 +331,20 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
       }
     }
 
+    // 每个字段的元数据信息 bits是field类型， info.number是序号
+    // 将 fieldNumber 和 字段类型放入一个long中。
     final long infoAndBits = (((long) info.number) << TYPE_BITS) | bits;
     bufferedDocs.writeVLong(infoAndBits);
 
     if (bytes != null) {
+      // 二进制数据
       bufferedDocs.writeVInt(bytes.length);
       bufferedDocs.writeBytes(bytes.bytes, bytes.offset, bytes.length);
     } else if (string != null) {
+      // 字符串
       bufferedDocs.writeString(string);
     } else {
+      // 数字
       if (number instanceof Byte || number instanceof Short || number instanceof Integer) {
         bufferedDocs.writeZInt(number.intValue());
       } else if (number instanceof Long) {
@@ -363,18 +388,21 @@ public final class Lucene90CompressingStoredFieldsWriter extends StoredFieldsWri
    */
   static void writeZFloat(DataOutput out, float f) throws IOException {
     int intVal = (int) f;
+    // 这步的目的是把float用IEEE编码转成二进制表示，
+    // 并将其二进制表示转成int，因为我们底层的数组只有writeInt方法，没有writeFloat方法，
+    // java也没有C++ 的memcpy那么灵活的用法
     final int floatBits = Float.floatToIntBits(f);
 
     if (f == intVal && intVal >= -1 && intVal <= 0x7D && floatBits != NEGATIVE_ZERO_FLOAT) {
-      // small integer value [-1..125]: single byte
+      // 第一种情况，小数位为0，且在[-1,125]之间
       out.writeByte((byte) (0x80 | (1 + intVal)));
     } else if ((floatBits >>> 31) == 0) {
-      // other positive floats: 4 bytes
+      // 其他正数float: 4 bytes
       out.writeByte((byte) (floatBits >> 24));
       out.writeShort((short) (floatBits >>> 8));
       out.writeByte((byte) floatBits);
     } else {
-      // other negative float: 5 bytes
+      // 负数float : 5 bytes，非但没有压缩，反而多了一个字节
       out.writeByte((byte) 0xFF);
       out.writeInt(floatBits);
     }

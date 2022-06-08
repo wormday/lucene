@@ -114,6 +114,7 @@ final class DocumentsWriterPerThreadPool implements Iterable<DocumentsWriterPerT
   DocumentsWriterPerThread getAndLock() {
     synchronized (this) {
       ensureOpen();
+      // 拿到的dwpt是已经对lock字段上锁了
       DocumentsWriterPerThread dwpt = freeList.poll(DocumentsWriterPerThread::tryLock);
       if (dwpt == null) {
         dwpt = newWriter();

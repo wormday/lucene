@@ -465,7 +465,13 @@ public final class IndexWriterConfig extends LiveIndexWriterConfig {
     return this;
   }
 
-  /** Set the {@link Sort} order to use for all (flushed and merged) segments. */
+  /** Set the {@link Sort} order to use for all (flushed and merged) segments.
+   * 摘自 https://www.6aiq.com/article/1586704007975
+   * 该方法用来在索引期间按照参数 Sort 对象提供的排序规则对一个段内的文档进行排序，
+   * 如果该排序规则跟搜索期间提供的排序规则是一样的，
+   * 那么很明显 Collector 收到的那些满足搜索条件的文档集合已经是有序的（
+   * 因为 Collecter 依次收到的文档号是从小到大有序的，而这个顺序描述了文档之间的顺序关系
+   * */
   public IndexWriterConfig setIndexSort(Sort sort) {
     for (SortField sortField : sort.getSort()) {
       if (sortField.getIndexSorter() == null) {

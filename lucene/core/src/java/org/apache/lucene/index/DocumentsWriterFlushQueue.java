@@ -27,6 +27,7 @@ import org.apache.lucene.util.IOConsumer;
 /** @lucene.internal */
 final class DocumentsWriterFlushQueue {
   private final Queue<FlushTicket> queue = new ArrayDeque<>();
+
   // we track tickets separately since count must be present even before the ticket is
   // constructed ie. queue.size would not reflect it.
   private final AtomicInteger ticketCount = new AtomicInteger();
@@ -81,8 +82,7 @@ final class DocumentsWriterFlushQueue {
 
   synchronized void addSegment(FlushTicket ticket, FlushedSegment segment) {
     assert ticket.hasSegment;
-    // the actual flush is done asynchronously and once done the FlushedSegment
-    // is passed to the flush ticket
+    // 实际的刷新是异步完成的，完成后将FlushedSegment传递给刷新票据
     ticket.setSegment(segment);
   }
 
@@ -163,6 +163,13 @@ final class DocumentsWriterFlushQueue {
     private boolean failed = false;
     private boolean published = false;
 
+    /**
+     * 有两个地方会构造一个 FlushTicket，
+     * 一个是全局的DocumentsWriterDeleteQueue实例，
+     * 一个是每个DWPT内的DocumentsWriterDeleteQueue实例
+     * @param frozenUpdates
+     * @param hasSegment
+     */
     FlushTicket(FrozenBufferedUpdates frozenUpdates, boolean hasSegment) {
       this.frozenUpdates = frozenUpdates;
       this.hasSegment = hasSegment;

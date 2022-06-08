@@ -79,7 +79,7 @@ final class IndexingChain implements Accountable {
   private int totalFieldCount;
   private long nextFieldGen;
 
-  // Holds fields seen in each document
+  // 保存在每个文档中看到的字段
   private PerField[] fields = new PerField[1];
   private PerField[] docFields = new PerField[2];
   private final InfoStream infoStream;
@@ -208,6 +208,7 @@ final class IndexingChain implements Accountable {
   }
 
   private Sorter.DocMap maybeSortSegment(SegmentWriteState state) throws IOException {
+    // 来源是 config.getIndexSort()
     Sort indexSort = state.segmentInfo.getIndexSort();
     if (indexSort == null) {
       return null;
@@ -230,11 +231,13 @@ final class IndexingChain implements Accountable {
         state.segmentInfo.maxDoc(), comparators.toArray(IndexSorter.DocComparator[]::new));
   }
 
+  /**
+   * 只有一个调用方 DWPT.flush
+   */
   Sorter.DocMap flush(SegmentWriteState state) throws IOException {
-
-    // NOTE: caller (DocumentsWriterPerThread) handles
-    // aborting on any exception from this method
+    // 注意:调用者(DocumentsWriterPerThread)会处理来自这个方法异常造成的中止
     Sorter.DocMap sortMap = maybeSortSegment(state);
+    // 这个段的文档总数
     int maxDoc = state.segmentInfo.maxDoc();
     long t0 = System.nanoTime();
     writeNorms(state, sortMap);
@@ -269,6 +272,7 @@ final class IndexingChain implements Accountable {
 
     // it's possible all docs hit non-aborting exceptions...
     t0 = System.nanoTime();
+    // storedFields
     storedFieldsConsumer.finish(maxDoc);
     storedFieldsConsumer.flush(state, sortMap);
     if (infoStream.isEnabled("IW")) {
@@ -590,7 +594,8 @@ final class IndexingChain implements Accountable {
       // build schema for each unique doc field
       for (IndexableField field : document) {
         IndexableFieldType fieldType = field.fieldType();
-        // 如果有相同字段，拿出来的是老得 pf 如果没有，获取到的是新的 pf
+        // 如果有名称相同字段，拿出来的是原先创建的 pf 如果没有，获取到的是新的 pf
+        // 第二个参数 字段类型 并没有使用
         PerField pf = getOrAddPerField(field.name(), fieldType);
         // 新生成的字段是 -1
         if (pf.fieldGen != fieldGen) { // first time we see this field in this document
@@ -622,6 +627,7 @@ final class IndexingChain implements Accountable {
       // also count the number of unique fields indexed with postings
       docFieldIdx = 0;
       for (IndexableField field : document) {
+        // 逻辑往这里走
         if (processField(docID, field, docFields[docFieldIdx])) {
           fields[indexedFieldCount] = docFields[docFieldIdx];
           indexedFieldCount++;
@@ -728,7 +734,7 @@ final class IndexingChain implements Accountable {
     IndexableFieldType fieldType = field.fieldType();
     boolean indexedField = false;
 
-    // Invert indexed fields
+    // 倒排索引
     if (fieldType.indexOptions() != IndexOptions.NONE) {
       if (pf.first) { // first time we see this field in this doc
         pf.invert(docID, field, true);
@@ -758,6 +764,7 @@ final class IndexingChain implements Accountable {
       }
     }
 
+    // 建DocValue
     DocValuesType dvType = fieldType.docValuesType();
     if (dvType != DocValuesType.NONE) {
       indexDocValue(docID, pf, dvType, field);

@@ -510,11 +510,12 @@ public final class LZ4 {
   }
 
   /**
-   * Compress {@code bytes[dictOff+dictLen:dictOff+dictLen+len]} into {@code out} using at most 16kB
-   * of memory. {@code bytes[dictOff:dictOff+dictLen]} will be used as a dictionary. {@code dictLen}
+   * Compress {@code bytes[dictOff+dictLen:dictOff+dictLen+len]} into {@code out}
+   * using at most 16kB of memory.
+   * {@code bytes[dictOff:dictOff+dictLen]} will be used as a dictionary. {@code dictLen}
    * must not be greater than 64kB, the maximum window size.
    *
-   * <p>{@code ht} shouldn't be shared across threads but can safely be reused.
+   * <p>{@code ht} 不要在线程间共享，但是可以安全的重用。
    */
   public static void compressWithDictionary(
       byte[] bytes, int dictOff, int dictLen, int len, DataOutput out, HashTable ht)

@@ -37,6 +37,7 @@ import org.apache.lucene.util.InfoStream;
 import org.apache.lucene.util.RamUsageEstimator;
 
 /**
+ * 一旦push后，以term,query的形式，缓存删除和更新。
  * Holds buffered deletes and updates by term or query, once pushed. Pushed deletes/updates are
  * write-once, so we shift to more memory efficient data structure to hold them. We don't hold
  * docIDs because these are applied on flush.
@@ -86,6 +87,8 @@ final class FrozenBufferedUpdates {
     assert privateSegment == null || updates.deleteTerms.isEmpty()
         : "segment private packet should only have del queries";
     Term[] termsArray = updates.deleteTerms.keySet().toArray(new Term[updates.deleteTerms.size()]);
+    // 为什么这里要排序，直接传给builder不行吗？
+    // 另外term的compareTo也被重写过了
     ArrayUtil.timSort(termsArray);
     PrefixCodedTerms.Builder builder = new PrefixCodedTerms.Builder();
     for (Term term : termsArray) {

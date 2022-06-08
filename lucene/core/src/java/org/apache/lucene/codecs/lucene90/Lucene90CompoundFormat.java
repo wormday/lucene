@@ -37,7 +37,7 @@ import org.apache.lucene.store.IndexOutput;
  *   <li><code>.cfs</code>: An optional "virtual" file consisting of all the other index files for
  *       systems that frequently run out of file handles.
  *   <li><code>.cfe</code>: The "virtual" compound file's entry table holding all entries in the
- *       corresponding .cfs file.
+ *       corresponding .cfs file. 保存所有cfs文件的条目
  * </ul>
  *
  * <p>Description:
@@ -87,6 +87,7 @@ public final class Lucene90CompoundFormat extends CompoundFormat {
 
   @Override
   public void write(Directory dir, SegmentInfo si, IOContext context) throws IOException {
+    // 生成两个文件名称
     String dataFile = IndexFileNames.segmentFileName(si.name, "", DATA_EXTENSION);
     String entriesFile = IndexFileNames.segmentFileName(si.name, "", ENTRIES_EXTENSION);
 

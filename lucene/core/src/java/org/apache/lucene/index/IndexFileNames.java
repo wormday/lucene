@@ -75,17 +75,9 @@ public final class IndexFileNames {
   }
 
   /**
-   * Returns a file name that includes the given segment name, your own custom name and extension.
-   * The format of the filename is: &lt;segmentName&gt;(_&lt;name&gt;)(.&lt;ext&gt;).
-   *
-   * <p><b>NOTE:</b> .&lt;ext&gt; is added to the result file name only if <code>ext</code> is not
-   * empty.
-   *
-   * <p><b>NOTE:</b> _&lt;segmentSuffix&gt; is added to the result file name only if it's not the
-   * empty string
-   *
-   * <p><b>NOTE:</b> all custom files should be named using this method, or otherwise some
-   * structures may fail to handle them properly (such as if they are added to compound files).
+   * 返回一个文件名，包含给定段名、自定义名称和扩展名。
+   * 格式为: segmentName(_name)(.ext)
+   * 注意：所有自定义文件都应该使用此方法命名，否则某些结构可能无法正确处理它们(例如将它们添加到复合文件中)。
    */
   public static String segmentFileName(String segmentName, String segmentSuffix, String ext) {
     if (ext.length() > 0 || segmentSuffix.length() > 0) {

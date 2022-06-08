@@ -81,6 +81,7 @@ final class ApproximatePriorityQueue<T> {
       }
       final T entry = slots.get(nextUsedSlot);
       if (predicate.test(entry)) {
+        // 如果可以给这个拿到的dwpt上锁，说明这个dwpt没有被占用
         usedSlots &= ~(1L << nextUsedSlot);
         slots.set(nextUsedSlot, null);
         return entry;

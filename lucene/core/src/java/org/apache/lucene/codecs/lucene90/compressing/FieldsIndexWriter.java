@@ -35,6 +35,7 @@ import org.apache.lucene.util.packed.DirectMonotonicWriter;
 /**
  * Efficient index format for block-based {@link Codec}s.
  *
+ * <p>对于每个压缩的stored fields block,
  * <p>For each block of compressed stored fields, this stores the first document of the block and
  * the start pointer of the block in a {@link DirectMonotonicWriter}. At read time, the docID is
  * binary-searched in the {@link DirectMonotonicReader} that records doc IDS, and the returned index
@@ -80,10 +81,12 @@ public final class FieldsIndexWriter implements Closeable {
     this.id = id;
     this.blockShift = blockShift;
     this.ioContext = ioContext;
+    // 生成 _0_Lucene90FieldsIndex-doc_ids_0.tmp
     this.docsOut = dir.createTempOutput(name, codecName + "-doc_ids", ioContext);
     boolean success = false;
     try {
       CodecUtil.writeHeader(docsOut, codecName + "Docs", VERSION_CURRENT);
+      // 生成 _0_Lucene90FieldsIndexfile_pointers_1.tmp
       filePointersOut = dir.createTempOutput(name, codecName + "file_pointers", ioContext);
       CodecUtil.writeHeader(filePointersOut, codecName + "FilePointers", VERSION_CURRENT);
       success = true;
@@ -94,9 +97,12 @@ public final class FieldsIndexWriter implements Closeable {
     }
   }
 
+  // flush 和 copyChunks 时调用
   void writeIndex(int numDocs, long startPointer) throws IOException {
     assert startPointer >= previousFP;
+    // 写入：_0_Lucene90FieldsIndex-doc_ids_0.tmp
     docsOut.writeVInt(numDocs);
+    // 写入：_0_Lucene90FieldsIndexfile_pointers_1.tmp
     filePointersOut.writeVLong(startPointer - previousFP);
     previousFP = startPointer;
     totalDocs += numDocs;
@@ -111,6 +117,7 @@ public final class FieldsIndexWriter implements Closeable {
     CodecUtil.writeFooter(filePointersOut);
     IOUtils.close(docsOut, filePointersOut);
 
+    // _4.fdx 文件
     try (IndexOutput dataOut =
         dir.createOutput(IndexFileNames.segmentFileName(name, suffix, extension), ioContext)) {
       CodecUtil.writeIndexHeader(dataOut, codecName + "Idx", VERSION_CURRENT, id, suffix);

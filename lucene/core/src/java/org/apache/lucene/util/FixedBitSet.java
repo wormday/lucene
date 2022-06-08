@@ -64,6 +64,9 @@ public final class FixedBitSet extends BitSet {
   public static int bits2words(int numBits) {
     // I.e.: get the word-offset of the last bit and add one (make sure to use >> so 0
     // returns 0!)
+    // 相当于 ((numBits - 1) / 64) + 1,
+    // 如果numBits=100 则会分配2个word,每个word 64bit 也就是long的长度
+    // 也就是计算需要多少个long来存储
     return ((numBits - 1) >> 6) + 1;
   }
 
@@ -116,6 +119,8 @@ public final class FixedBitSet extends BitSet {
   }
 
   /**
+   * 构造一个FixedBitSet对象，参数numBits用来确定需要多少bit位来存储我们的int数值
+   * 实际会分配一个64的整数倍的bit位
    * Creates a new LongBitSet. The internally allocated long array will be exactly the size needed
    * to accommodate the numBits specified.
    *
@@ -233,8 +238,11 @@ public final class FixedBitSet extends BitSet {
   @Override
   public void set(int index) {
     assert index >= 0 && index < numBits : "index=" + index + ", numBits=" + numBits;
-    int wordNum = index >> 6; // div 64
+    int wordNum = index >> 6; // 除以64
+    // 计算出当前文档号应该放到64个bit位(long类型)的哪一位
+    // << 运算符 超过了63，又回到了原点
     long bitmask = 1L << index;
+    // bits[]是个long类型的数据
     bits[wordNum] |= bitmask;
   }
 
@@ -500,7 +508,7 @@ public final class FixedBitSet extends BitSet {
 
   /**
    * Sets a range of bits
-   *
+   * 包前不包后
    * @param startIndex lower index
    * @param endIndex one-past the last bit to set
    */

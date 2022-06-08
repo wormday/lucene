@@ -73,8 +73,7 @@ public final class RamUsageEstimator {
   public static final int NUM_BYTES_ARRAY_HEADER;
 
   /**
-   * A constant specifying the object alignment boundary inside the JVM. Objects will always take a
-   * full multiple of this constant, possibly wasting some space.
+   * 一个常量，指定JVM内部的对象对齐边界。对象将总是这个常数的整数倍，可能会浪费一些空间。
    */
   public static final int NUM_BYTES_OBJECT_ALIGNMENT;
 

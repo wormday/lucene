@@ -51,10 +51,13 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
       };
 
   /**
+   * 一个{@link ByteBuffer}分配和回收策略的实现。
+   * 如果请求完全相同的大小，则回收这些块，否则将释放它们以进行GCed。
    * An implementation of a {@link ByteBuffer} allocation and recycling policy. The blocks are
    * recycled if exactly the same size is requested, otherwise they're released to be GCed.
    */
   public static final class ByteBufferRecycler {
+    // double-ended queue 双端队列,用于缓存
     private final ArrayDeque<ByteBuffer> reuse = new ArrayDeque<>();
     private final IntFunction<ByteBuffer> delegate;
 
@@ -62,19 +65,22 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
       this.delegate = Objects.requireNonNull(delegate);
     }
 
+    // 分配一个block
     public ByteBuffer allocate(int size) {
       while (!reuse.isEmpty()) {
         ByteBuffer bb = reuse.removeFirst();
+        // 如果我们没有与请求大小完全相同的缓冲区，则丢弃它。
         // If we don't have a buffer of exactly the requested size, discard it.
         if (bb.remaining() == size) {
+          // 如果缓存中有匹配的，则返回
           return bb;
         }
       }
-
       return delegate.apply(size);
     }
 
     public void reuse(ByteBuffer buffer) {
+      // 把position设为0，limit不变，一般在把数据重写入Buffer前调用。
       buffer.rewind();
       reuse.addLast(buffer);
     }
@@ -105,7 +111,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
   /** {@link ByteBuffer} recycler on {@link #reset}. */
   private final Consumer<ByteBuffer> blockReuse;
 
-  /** Current block size: {@code 2^bits}. */
+  /** Current block size: {@code 2^bits}.  */
   private int blockBits;
 
   /** Blocks storing data. */
@@ -193,10 +199,11 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
   public void writeBytes(byte[] src, int offset, int length) {
     assert length >= 0;
     while (length > 0) {
+      // 同一份数据 可以跨多个chunk和block
       if (!currentBlock.hasRemaining()) {
+        // 如果当前block没有空间，需要新申请
         appendBlock();
       }
-
       int chunk = Math.min(currentBlock.remaining(), length);
       currentBlock.put(src, offset, chunk);
       length -= chunk;
@@ -280,8 +287,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
   }
 
   /**
-   * Return a contiguous array with the current content written to the output. The returned array is
-   * always a copy (can be mutated).
+   * 返回一个连续数组，并将当前内容写入输出。返回的数组总是一个副本(可以被修改)。
    *
    * <p>If the {@link #size()} of the underlying buffers exceeds maximum size of Java array, an
    * {@link RuntimeException} will be thrown.
@@ -321,7 +327,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
     }
   }
 
-  /** @return The number of bytes written to this output so far. */
+  /** @return 到目前为止写入此输出的字节数。 */
   public long size() {
     long size = 0;
     int blockCount = blocks.size();
@@ -458,6 +464,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
   // TODO: perhaps we can move it out to an utility class (as a supplier of preconfigured
   // instances?)
   public static ByteBuffersDataOutput newResettableInstance() {
+    // 内置了一个缓存，如果缓存中有合适的，则返回，没有合适的，调用 ALLOCATE_BB_ON_HEAP(内部是:ByteBuffer::allocate)
     ByteBuffersDataOutput.ByteBufferRecycler reuser =
         new ByteBuffersDataOutput.ByteBufferRecycler(ByteBuffersDataOutput.ALLOCATE_BB_ON_HEAP);
     return new ByteBuffersDataOutput(
@@ -473,13 +480,15 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
 
   private void appendBlock() {
     if (blocks.size() >= MAX_BLOCKS_BEFORE_BLOCK_EXPANSION && blockBits < maxBitsPerBlock) {
+      // 如果block的数量太多(100),并且blockBits小于
       rewriteToBlockSize(blockBits + 1);
       if (blocks.getLast().hasRemaining()) {
         return;
       }
     }
-
+    // 新申请block大小为 2^blockBits
     final int requiredBlockSize = 1 << blockBits;
+    // 获得新的block, 调用的是 ByteBufferRecycler.allocate
     currentBlock = blockAllocate.apply(requiredBlockSize).order(ByteOrder.LITTLE_ENDIAN);
     ;
     assert currentBlock.capacity() == requiredBlockSize;
@@ -490,6 +499,8 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
   private void rewriteToBlockSize(int targetBlockBits) {
     assert targetBlockBits <= maxBitsPerBlock;
 
+    // 我们将数据块复制到一个更大的块位大小的输出。
+    // 我们还在复制时丢弃对块的引用，以便在内存压力大的情况下允许GC清理部分结果。
     // We copy over data blocks to an output with one-larger block bit size.
     // We also discard references to blocks as we're copying to allow GC to
     // clean up partial results in case of memory pressure.
@@ -539,6 +550,7 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
       IntConsumer bufferFlusher) {
     int utf8Len = 0;
     int j = 0;
+    // 遍历s的每个字符
     for (int i = offset, end = offset + length; i < end; i++) {
       final int chr = (int) s.charAt(i);
 
@@ -547,12 +559,14 @@ public final class ByteBuffersDataOutput extends DataOutput implements Accountab
         utf8Len += j;
         j = 0;
       }
-
+      // 小于128的字符，单字符编码
       if (chr < 0x80) buf[j++] = (byte) chr;
       else if (chr < 0x800) {
+        // 110xxxxx 10xxxxxx 两字节编码（11bit有效位）
         buf[j++] = (byte) (0xC0 | (chr >> 6));
         buf[j++] = (byte) (0x80 | (chr & 0x3F));
       } else if (chr < 0xD800 || chr > 0xDFFF) {
+        // 1110xxxx 10xxxxxx 10xxxxxx 三字节编码（16bit有效位）
         buf[j++] = (byte) (0xE0 | (chr >> 12));
         buf[j++] = (byte) (0x80 | ((chr >> 6) & 0x3F));
         buf[j++] = (byte) (0x80 | (chr & 0x3F));

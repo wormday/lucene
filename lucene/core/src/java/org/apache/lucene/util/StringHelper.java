@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.UUID;
 
 /**
  * Methods for manipulating strings.
@@ -217,7 +218,9 @@ public abstract class StringHelper {
   static {
     // 128 bit unsigned mask
     byte[] maskBytes128 = new byte[16];
+    // 128位全部置1
     Arrays.fill(maskBytes128, (byte) 0xff);
+    // maskBytes128 标识绝对值，1标识符号位，在这里会添加一个全0字节
     mask128 = new BigInteger(1, maskBytes128);
 
     String prop = System.getProperty("tests.seed");
@@ -256,6 +259,7 @@ public abstract class StringHelper {
             sb.append(s);
             sb.append(p.getProperty(s));
           }
+          // StringHelper的hashCode放在高32位（每次运行都不同），系统参数的hashCode 放在低32位
           x1 |= sb.toString().hashCode();
         } catch (
             @SuppressWarnings("unused")
@@ -265,10 +269,10 @@ public abstract class StringHelper {
         }
       }
     }
-
-    // Use a few iterations of xorshift128 to scatter the seed
-    // in case multiple Lucene instances starting up "near" the same
-    // nanoTime, since we use ++ (mod 2^128) for full period cycle:
+    // 使用几个xorshift128的迭代来分散种子，
+    // 以防多个Lucene实例在“附近”启动相同的nanoTime，
+    // 因为我们使用++ (mod 2^128)作为完整的周期周期:
+    // 为什么abc选择23,17,26有什么规则？
     for (int i = 0; i < 10; i++) {
       long s1 = x0;
       long s0 = x1;
@@ -293,29 +297,21 @@ public abstract class StringHelper {
   /** length in bytes of an ID */
   public static final int ID_LENGTH = 16;
 
-  /** Generates a non-cryptographic globally unique id. */
+  /** 生成一个非加密的全局惟一id。 */
   public static byte[] randomId() {
 
-    // NOTE: we don't use Java's UUID.randomUUID() implementation here because:
-    //
-    //   * It's overkill for our usage: it tries to be cryptographically
-    //     secure, whereas for this use we don't care if someone can
-    //     guess the IDs.
-    //
-    //   * It uses SecureRandom, which on Linux can easily take a long time
-    //     (I saw ~ 10 seconds just running a Lucene test) when entropy
-    //     harvesting is falling behind.
-    //
-    //   * It loses a few (6) bits to version and variant and it's not clear
-    //     what impact that has on the period, whereas the simple ++ (mod 2^128)
-    //     we use here is guaranteed to have the full period.
+    // 注意:我们在这里不使用Java的UUID.randomUUID()实现，因为
+    //  * 对于我们来说它有点过了：它试图加密，然而我们不关心是否有人能猜出id
+    //  * 它使用SecureRandom，在Linux上，当熵收集滞后时，它很容易花费很长时间(我看到仅运行一个Lucene测试就需要10秒)。
+    //  * 它会因为版本和变体而丢失一些(6)位，不清楚这对period有什么影响，而我们在这里使用的简单的++ (mod 2^128)保证有完整的period。
 
     byte[] bits;
     synchronized (idLock) {
+      // 注意：nextId类型为BigInteger,通过一个数组可以处理任意大的整数，原生的最大是long
       bits = nextId.toByteArray();
       nextId = nextId.add(BigInteger.ONE).and(mask128);
     }
-
+    // toByteArray()总是返回一个符号位，所以它可能需要额外的字节(总是0)
     // toByteArray() always returns a sign bit, so it may require an extra byte (always zero)
     if (bits.length > ID_LENGTH) {
       assert bits.length == ID_LENGTH + 1;

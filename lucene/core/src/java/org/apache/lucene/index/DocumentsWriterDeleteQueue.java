@@ -29,34 +29,33 @@ import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.InfoStream;
 
 /**
- * {@link DocumentsWriterDeleteQueue} is a non-blocking linked pending deletes queue. In contrast to
- * other queue implementation we only maintain the tail of the queue. A delete queue is always used
- * in a context of a set of DWPTs and a global delete pool. Each of the DWPT and the global pool
- * need to maintain their 'own' head of the queue (as a DeleteSlice instance per {@link
- * DocumentsWriterPerThread}). The difference between the DWPT and the global pool is that the DWPT
+ * {@link DocumentsWriterDeleteQueue}是一个非阻塞的链接待删除队列。
+ * 与其他队列实现相比，我们只维护队列的尾部。删除队列总是在DWPT和全局删除池使用。每个DWPT和全局删除池需要维护他们自己的队列头
+ * (作为每个{@link DocumentsWriterPerThread}的DeleteSlice实例)
+ * DWPT和全局删除池的区别在于，DWPT在添加了第一个文档之后，就开始维护头部。因为对于
+ *  The difference between the DWPT and the global pool is that the DWPT
  * starts maintaining a head once it has added its first document since for its segments private
  * deletes only the deletes after that document are relevant. The global pool instead starts
  * maintaining the head once this instance is created by taking the sentinel instance as its initial
  * head.
  *
- * <p>Since each {@link DeleteSlice} maintains its own head and the list is only single linked the
- * garbage collector takes care of pruning the list for us. All nodes in the list that are still
- * relevant should be either directly or indirectly referenced by one of the DWPT's private {@link
- * DeleteSlice} or by the global {@link BufferedUpdates} slice.
+ * <p>因为每个{@link DeleteSlice}维护自己的队列头，并且列表只有单链接，垃圾收集器会为我们清理列表。
+ * 列表中所有仍然相关的节点应该被DWPT私有的{@link DeleteSlice}或全局的{@link BufferedUpdates}slice直接或间接引用。
  *
- * <p>Each DWPT as well as the global delete pool maintain their private DeleteSlice instance. In
- * the DWPT case updating a slice is equivalent to atomically finishing the document. The slice
- * update guarantees a "happens before" relationship to all other updates in the same indexing
- * session. When a DWPT updates a document it:
+ * <p>每个DWPT以及全局删除池都维护它们的私有DeleteSlice实例。
+ * 在DWPT情况下，更新一个slice相当于原子地完成文档。在同一索引会话中，片更新保证了相对于所有其他更新的“happens before”关系。
+ * 当DWPT更新文档时:
  *
  * <ol>
  *   <li>consumes a document and finishes its processing
- *   <li>updates its private {@link DeleteSlice} either by calling {@link #updateSlice(DeleteSlice)}
- *       or {@link #add(Node, DeleteSlice)} (if the document has a delTerm)
- *   <li>applies all deletes in the slice to its private {@link BufferedUpdates} and resets it
- *   <li>increments its internal document id
+ *   <li>通过调用{@link #updateSlice(DeleteSlice)}或{@link #add(Node, DeleteSlice)}(如果文档有delTerm)
+ *       来更新它的私有{@link DeleteSlice}
+ *   <li>将切片中的所有删除操作应用于它的私有{@link BufferedUpdates}，并重置它
+ *   <li>递增其内部文档id
  * </ol>
  *
+ *  DWPT也不会应用它当前的文档删除术语，直到它更新了它的删除片，这确保了更新的一致性。
+ *  如果在可以更新DeleteSlice之前更新失败，那么deleteTerm也不会添加到其私有删除和全局删除。
  * The DWPT also doesn't apply its current documents delete term until it has updated its delete
  * slice which ensures the consistency of the update. If the update fails before the DeleteSlice
  * could have been updated the deleteTerm will also not be added to its private deletes neither to
@@ -64,15 +63,14 @@ import org.apache.lucene.util.InfoStream;
  */
 final class DocumentsWriterDeleteQueue implements Accountable, Closeable {
 
-  // the current end (latest delete operation) in the delete queue:
+  // 删除队列的当前元素（最后一个删除操作）
   private volatile Node<?> tail;
 
   private volatile boolean closed = false;
 
   /**
-   * Used to record deletes against all prior (already written to disk) segments. Whenever any
-   * segment flushes, we bundle up this set of deletes and insert into the buffered updates stream
-   * before the newly flushed segment(s).
+   * 用于记录对所有先前(已经写入磁盘)段的删除。
+   * 每当任何段刷新时，我们都会在新刷新的段之前将这组删除和插入操作捆绑到缓冲的更新流中。
    */
   private final DeleteSlice globalSlice;
 
@@ -84,6 +82,7 @@ final class DocumentsWriterDeleteQueue implements Accountable, Closeable {
   final long generation;
 
   /**
+   * 生成IW返回给更改索引的调用者的序列号，显示所有操作的有效序列化。
    * Generates the sequence number that IW returns to callers changing the index, showing the
    * effective serialization of all operations.
    */

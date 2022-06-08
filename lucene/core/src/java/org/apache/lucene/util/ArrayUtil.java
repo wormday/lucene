@@ -119,16 +119,15 @@ public final class ArrayUtil {
    */
 
   /**
-   * Returns an array size &gt;= minTargetSize, generally over-allocating exponentially to achieve
+   * 返回数组大小 &gt;= minTargetSize, generally over-allocating exponentially to achieve
    * amortized linear-time cost as the array grows.
    *
-   * <p>NOTE: this was originally borrowed from Python 2.4.2 listobject.c sources (attribution in
-   * LICENSE.txt), but has now been substantially changed based on discussions from java-dev thread
-   * with subject "Dynamic array reallocation algorithms", started on Jan 12 2010.
+   * <P>NOTE: 这最初是从Python 2.4.2 listobject.c 源代码中借鉴来的(归属在LICENSE.txt中)，
+   * 但现在根据2010年1月12日开始的主题为“动态数组重新分配算法”的java-dev线程的讨论，已经进行了实质上的更改。
    *
-   * @param minTargetSize Minimum required value to be returned.
-   * @param bytesPerElement Bytes used by each element of the array. See constants in {@link
-   *     RamUsageEstimator}.
+   * @param minTargetSize 需要返回的最小值。
+   * @param bytesPerElement 数组中每个元素使用的字节。 参见常量 {@link RamUsageEstimator}.
+   *
    * @lucene.internal
    */
   public static int oversize(int minTargetSize, int bytesPerElement) {
@@ -152,24 +151,24 @@ public final class ArrayUtil {
               + ")");
     }
 
-    // asymptotic exponential growth by 1/8th, favors
-    // spending a bit more CPU to not tie up too much wasted
-    // RAM:
+    // 每次增长1/8，可以多用一点点CPU，而不造成内存的浪费:
     int extra = minTargetSize >> 3;
 
     if (extra < 3) {
-      // 对于非常小的数组，realloc的常量开销可能相对较高，我们增长得更快
+      // 对于非常小的数组，realloc的常量开销可能相对较高，就增长的更快
       extra = 3;
     }
 
     int newSize = minTargetSize + extra;
 
     // add 7 to allow for worst case byte alignment addition below:
+    // 这里判断 <0 是必要的，因为如果minTargetSize很大，导致 minTargetSize + extra 溢出为负值
     if (newSize + 7 < 0 || newSize + 7 > MAX_ARRAY_LENGTH) {
       // int overflowed, or we exceeded the maximum array length
       return MAX_ARRAY_LENGTH;
     }
 
+    // 看看能不能把内存对齐的空间利用起来
     if (Constants.JRE_IS_64BIT) {
       // round up to 8 byte alignment in 64bit env
       switch (bytesPerElement) {

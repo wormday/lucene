@@ -270,7 +270,7 @@ public final class SegmentInfo {
     return minVersion;
   }
 
-  /** Return the id that uniquely identifies this segment. */
+  /** 返回唯一标识此段的id。是个类似于Guid的随机数，16个字节，128位 */
   public byte[] getId() {
     return id.clone();
   }

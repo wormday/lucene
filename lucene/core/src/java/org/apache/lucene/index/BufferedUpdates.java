@@ -27,15 +27,15 @@ import org.apache.lucene.util.Counter;
 import org.apache.lucene.util.RamUsageEstimator;
 
 /**
- * Holds buffered deletes and updates, by docID, term or query for a single segment. This is used to
- * hold buffered pending deletes and updates against the to-be-flushed segment. Once the deletes and
- * updates are pushed (on flush in DocumentsWriter), they are converted to a {@link
- * FrozenBufferedUpdates} instance and pushed to the {@link BufferedUpdatesStream}.
+ * 为什么有docId？代码里好像没有看见
+ * 为单个段以docID,term,query的形式，缓存删除和更新。
+ * 为待刷新的段保存挂起的删除和更新。
+ * 一旦这些删除和更新被 push (DocumentsWriter中调用flush), 他们被转变为 {@link
+ * FrozenBufferedUpdates} 实例，并且推送到 {@link BufferedUpdatesStream}.
  */
 
-// NOTE: instances of this class are accessed either via a private
-// instance on DocumentWriterPerThread, or via sync'd code by
-// DocumentsWriterDeleteQueue
+// 注意: 该类的实例可以通过DocumentWriterPerThread上的私有字段访问，
+// 也可以通过DocumentsWriterDeleteQueue上的同步代码访问
 
 class BufferedUpdates implements Accountable {
 
@@ -64,19 +64,25 @@ class BufferedUpdates implements Accountable {
           + 2 * RamUsageEstimator.NUM_BYTES_OBJECT_HEADER
           + 2 * Integer.BYTES
           + 24;
+  // 需要删除term的数量，重复的term，数量依然累计
   final AtomicInteger numTermDeletes = new AtomicInteger();
   final AtomicInteger numFieldUpdates = new AtomicInteger();
 
+  // 需要删除的terms
   final Map<Term, Integer> deleteTerms =
       new HashMap<>(); // TODO cut this over to FieldUpdatesBuffer
+  // 需要删除的queries
   final Map<Query, Integer> deleteQueries = new HashMap<>();
 
   final Map<String, FieldUpdatesBuffer> fieldUpdates = new HashMap<>();
 
   public static final Integer MAX_INT = Integer.valueOf(Integer.MAX_VALUE);
 
+  // 需要删除的queries占用的内存
   private final Counter bytesUsed = Counter.newCounter(true);
   final Counter fieldUpdatesBytesUsed = Counter.newCounter(true);
+
+  // 需要删除的term占用的内存
   private final Counter termsBytesUsed = Counter.newCounter(true);
 
   private static final boolean VERBOSE_DELETES = false;
@@ -119,30 +125,30 @@ class BufferedUpdates implements Accountable {
   }
 
   public void addQuery(Query query, int docIDUpto) {
+    // 为什么deleteQueries.put不像，deleteTerms.put之前要先判断版本呢？
     Integer current = deleteQueries.put(query, docIDUpto);
     // increment bytes used only if the query wasn't added so far.
     if (current == null) {
+      // 为什么删除query占用的内存是个常数？
       bytesUsed.addAndGet(BYTES_PER_DEL_QUERY);
     }
   }
 
   public void addTerm(Term term, int docIDUpto) {
+    // Term的equals方法被重写，field和bytes都相同才相等
     Integer current = deleteTerms.get(term);
     if (current != null && docIDUpto < current) {
-      // Only record the new number if it's greater than the
-      // current one.  This is important because if multiple
-      // threads are replacing the same doc at nearly the
-      // same time, it's possible that one thread that got a
-      // higher docID is scheduled before the other
-      // threads.  If we blindly replace than we can
-      // incorrectly get both docs indexed.
+      // 只记录大于当前数字的新数字。 这一点很重要，
+      // 因为如果多个线程几乎在同一时间替换相同的文档，
+      // 那么可能会有一个拥有更高docID的线程在其他线程之前被调度。
+      // 如果我们盲目地替换，我们就会错误地对两个文档进行索引。
       return;
     }
 
     deleteTerms.put(term, Integer.valueOf(docIDUpto));
-    // note that if current != null then it means there's already a buffered
-    // delete on that term, therefore we seem to over-count. this over-counting
-    // is done to respect IndexWriterConfig.setMaxBufferedDeleteTerms.
+    // 请注意，如果current != null，则意味着该term已经有一个缓存的删除，因此似乎numTermDeletes计数增多了。
+    // 这种重复计数是为了照应 IndexWriterConfig.setMaxBufferedDeleteTerms。
+    // 根据LUCENE-7868，setMaxBufferedDeleteTerms已经被删除了，汗……
     numTermDeletes.incrementAndGet();
     if (current == null) {
       termsBytesUsed.addAndGet(

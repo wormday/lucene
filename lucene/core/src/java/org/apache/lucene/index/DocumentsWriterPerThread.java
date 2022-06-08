@@ -61,6 +61,7 @@ final class DocumentsWriterPerThread implements Accountable {
     final SegmentCommitInfo segmentInfo;
     final FieldInfos fieldInfos;
     final FrozenBufferedUpdates segmentUpdates;
+    // 删除标记
     final FixedBitSet liveDocs;
     final Sorter.DocMap sortMap;
     final int delCount;
@@ -118,20 +119,26 @@ final class DocumentsWriterPerThread implements Accountable {
   private final SegmentInfo segmentInfo; // Current segment we are working on
   private boolean aborted = false; // True if we aborted
   private SetOnce<Boolean> flushPending = new SetOnce<>();
+
+  // 最后一次提交的字节数
   private volatile long lastCommittedBytesUsed;
   private SetOnce<Boolean> hasFlushed = new SetOnce<>();
 
   private final FieldInfos.Builder fieldInfos;
   private final InfoStream infoStream;
   private int numDocsInRAM;
+  // deleteQueue 是所有DWPT共享的，因为是通过构造函数声明 并通过 DocumentsWriter 传入的
   final DocumentsWriterDeleteQueue deleteQueue;
+  // 刚初始化的时候 sliceHead = sliceTail = deleteQueue.tail
   private final DeleteSlice deleteSlice;
   private final NumberFormat nf = NumberFormat.getInstance(Locale.ROOT);
   private final AtomicLong pendingNumDocs;
   private final LiveIndexWriterConfig indexWriterConfig;
   private final boolean enableTestPoints;
   private final ReentrantLock lock = new ReentrantLock();
+  // 需要删除的docId
   private int[] deleteDocIDs = new int[0];
+  // 需要删除的docId的数量
   private int numDeletedDocIds = 0;
 
   DocumentsWriterPerThread(
@@ -236,8 +243,9 @@ final class DocumentsWriterPerThread implements Accountable {
           // document, so the counter will be "wrong" in that case, but
           // it's very hard to fix (we can't easily distinguish aborting
           // vs non-aborting exceptions):
-          reserveOneDoc();
+          reserveOneDoc(); // 其实就是 pendingNumDocs++
           try {
+            // 逻辑在这里
             indexingChain.processDocument(numDocsInRAM++, doc);
           } finally {
             // DocumentsWriter的numDocsInRAM自增1
@@ -260,18 +268,20 @@ final class DocumentsWriterPerThread implements Accountable {
 
   private long finishDocuments(DocumentsWriterDeleteQueue.Node<?> deleteNode, int docIdUpTo) {
     /*
-     * here we actually finish the document in two steps 1. push the delete into
-     * the queue and update our slice. 2. increment the DWPT private document
-     * id.
+     * 在这里，我们实际上分两步完成了文档
+     * 1. 将delete推入队列并更新我们的切片。
+     * 2. 增加DWPT私有文档id。
      *
-     * the updated slice we get from 1. holds all the deletes that have occurred
-     * since we updated the slice the last time.
+     * 我们从 1 得到的更新的切片。保存自上次更新切片以来发生的所有删除。
      */
     // Apply delTerm only after all indexing has
     // succeeded, but apply it only to docs prior to when
     // this batch started:
     long seqNo;
     if (deleteNode != null) {
+      // this.deleteQueue.tail = deleteNode
+      // this.deleteSlice.sliceTail = deleteNode
+      // this.deleteQueue.globalSlice.sliceTail = this.deleteQueue.tail
       seqNo = deleteQueue.add(deleteNode, deleteSlice);
       assert deleteSlice.isTail(deleteNode) : "expected the delete term as the tail item";
       deleteSlice.apply(pendingUpdates, docIdUpTo);
@@ -321,8 +331,8 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /**
-   * Prepares this DWPT for flushing. This method will freeze and return the {@link
-   * DocumentsWriterDeleteQueue}s global buffer and apply all pending deletes to this DWPT.
+   * 将 DWPT 准备好刷新。 这个方法冻结并返回 {@link
+   * DocumentsWriterDeleteQueue}s 全局缓冲区，并将所有待执行的删除应用到这个 DWPT.
    */
   FrozenBufferedUpdates prepareFlush() {
     assert numDocsInRAM > 0;
@@ -338,12 +348,14 @@ final class DocumentsWriterPerThread implements Accountable {
     return globalUpdates;
   }
 
-  /** Flush all pending docs to a new segment */
+  /** 刷新所有挂起的文档到新段 */
   FlushedSegment flush(DocumentsWriter.FlushNotifications flushNotifications) throws IOException {
     assert flushPending.get() == Boolean.TRUE;
     assert numDocsInRAM > 0;
     assert deleteSlice.isEmpty() : "all deletes must be applied in prepareFlush";
     segmentInfo.setMaxDoc(numDocsInRAM);
+
+    // flushState 基本没有逻辑，都是保存的各种参数
     final SegmentWriteState flushState =
         new SegmentWriteState(
             infoStream,
@@ -359,8 +371,10 @@ final class DocumentsWriterPerThread implements Accountable {
     // doc, eg if analyzer has some problem w/ the text):
     if (numDeletedDocIds > 0) {
       flushState.liveDocs = new FixedBitSet(numDocsInRAM);
+      // 设置从 0 到 numDocsInRAM-1
       flushState.liveDocs.set(0, numDocsInRAM);
       for (int i = 0; i < numDeletedDocIds; i++) {
+        // 清除那些需要删除的docId
         flushState.liveDocs.clear(deleteDocIDs[i]);
       }
       flushState.delCountOnFlush = numDeletedDocIds;
@@ -389,6 +403,7 @@ final class DocumentsWriterPerThread implements Accountable {
       } else {
         softDeletedDocs = null;
       }
+      // 逻辑在这里
       sortMap = indexingChain.flush(flushState);
       if (softDeletedDocs == null) {
         flushState.softDelCountOnFlush = 0;
@@ -518,8 +533,7 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /**
-   * Seals the {@link SegmentInfo} for the new flushed segment and persists the deleted documents
-   * {@link FixedBitSet}.
+   * 为新刷新的段，冻结{@link SegmentInfo}，并持久保存已删除的文档{@link FixedBitSet}。
    */
   void sealFlushedSegment(
       FlushedSegment flushedSegment,
@@ -529,15 +543,16 @@ final class DocumentsWriterPerThread implements Accountable {
     assert flushedSegment != null;
     SegmentCommitInfo newSegment = flushedSegment.segmentInfo;
 
+    // 将诊断信息，保存至参数 newSegment.info.diagnostics 是个map类型
     IndexWriter.setDiagnostics(newSegment.info, IndexWriter.SOURCE_FLUSH);
-
+    // 生成ICContext
     IOContext context =
         new IOContext(new FlushInfo(newSegment.info.maxDoc(), newSegment.sizeInBytes()));
 
     boolean success = false;
     try {
-
       if (indexWriterConfig.getUseCompoundFile()) {
+        // 如果开启了符合索引文件
         Set<String> originalFiles = newSegment.info.files();
         // TODO: like addIndexes, we are relying on createCompoundFile to successfully cleanup...
         IndexWriter.createCompoundFile(
@@ -550,18 +565,16 @@ final class DocumentsWriterPerThread implements Accountable {
         newSegment.info.setUseCompoundFile(true);
       }
 
-      // Have codec write SegmentInfo.  Must do this after
-      // creating CFS so that 1) .si isn't slurped into CFS,
-      // and 2) .si reflects useCompoundFile=true change
-      // above:
+      // 有编解码器写SegmentInfo。创建CFS后必须这样做，因此
+      // 1) .si 不会进入CFS
+      // 2) .si 反映 useCompoundFile=true 变化:
       codec.segmentInfoFormat().write(directory, newSegment.info, context);
 
       // TODO: ideally we would freeze newSegment here!!
       // because any changes after writing the .si will be
       // lost...
 
-      // Must write deleted docs after the CFS so we don't
-      // slurp the del file into CFS:
+      // 必须在CFS之后写已删除的文档，这样我们就不会把del文件吸进CFS:
       if (flushedSegment.liveDocs != null) {
         final int delCount = flushedSegment.delCount;
         assert delCount > 0;
@@ -614,6 +627,9 @@ final class DocumentsWriterPerThread implements Accountable {
     return segmentInfo;
   }
 
+  /**
+   * 这个DWPT消耗的内存量
+   */
   @Override
   public long ramBytesUsed() {
     assert lock.isHeldByCurrentThread();
@@ -657,7 +673,7 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /**
-   * Returns the last committed bytes for this DWPT. This method can be called without acquiring the
+   * 返回这个 DWPT 最后一次提交的字节数。 This method can be called without acquiring the
    * DWPTs lock.
    */
   long getLastCommittedBytesUsed() {
@@ -665,8 +681,8 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /**
-   * Commits the current {@link #ramBytesUsed()} and stores it's value for later reuse. The last
-   * committed bytes used can be retrieved via {@link #getLastCommittedBytesUsed()}
+   * 提交当前的 {@link #ramBytesUsed()} 并存储它的值以供以后重用。
+   * The last committed bytes used can be retrieved via {@link #getLastCommittedBytesUsed()}
    */
   void commitLastBytesUsed(long delta) {
     assert isHeldByCurrentThread();
@@ -675,7 +691,7 @@ final class DocumentsWriterPerThread implements Accountable {
   }
 
   /**
-   * Calculates the delta between the last committed bytes used and the currently used ram.
+   * 计算最近提交的已使用字节与当前使用的ram之间的差值。
    *
    * @see #commitLastBytesUsed(long)
    * @return the delta between the current {@link #ramBytesUsed()} and the current {@link

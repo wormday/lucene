@@ -168,24 +168,17 @@ import org.apache.lucene.util.Version;
  */
 
 /*
- * Clarification: Check Points (and commits)
- * IndexWriter writes new index files to the directory without writing a new segments_N
- * file which references these new files. It also means that the state of
- * the in memory SegmentInfos object is different than the most recent
- * segments_N file written to the directory.
+ * 澄清:检查点(和提交)
+ * IndexWriter将新的索引文件写入目录，而不写入引用这些新文件的新的segments_N文件。(只写索引文件，但是不更新segments_N)
+ * 它也意味着内存中的SegmentInfos对象的状态与写入该目录的最近的segments_N文件不同。
  *
- * Each time the SegmentInfos is changed, and matches the (possibly
- * modified) directory files, we have a new "check point".
- * If the modified/new SegmentInfos is written to disk - as a new
- * (generation of) segments_N file - this check point is also an
- * IndexCommit.
+ * 每次SegmentInfos被更改，并且与(可能被修改的)目录文件相匹配时，我们有一个新的“检查点”。
  *
- * A new checkpoint always replaces the previous checkpoint and
- * becomes the new "front" of the index. This allows the IndexFileDeleter
- * to delete files that are referenced only by stale checkpoints.
- * (files that were created since the last commit, but are no longer
- * referenced by the "front" of the index). For this, IndexFileDeleter
- * keeps track of the last non commit checkpoint.
+ * 如果修改的/新的SegmentInfos被写入磁盘-作为一个新的(生成的)segments_N文件-这个检查点也是一个IndexCommit。
+ *
+ * 一个新的检查点总是替换之前的检查点，而成为索引的新“前端”
+ * 这允许IndexFileDeleter删除仅由过时检查点引用的文件。(自上次提交以来创建的文件，但不再被索引的“前端”引用)。
+ * 为此，IndexFileDeleter跟踪最后一个非提交检查点。
  */
 public class IndexWriter
     implements Closeable, TwoPhaseCommit, Accountable, MergePolicy.MergeContext {
@@ -249,8 +242,7 @@ public class IndexWriter
   public static final int MAX_STORED_STRING_LENGTH =
       ArrayUtil.MAX_ARRAY_LENGTH / UnicodeUtil.MAX_UTF8_BYTES_PER_CHAR;
 
-  // when unrecoverable disaster strikes, we populate this with the reason that we had to close
-  // IndexWriter
+  // 当不可恢复的灾难发生时，将关闭IndexWriter的原因填充到这里
   private final AtomicReference<Throwable> tragedy = new AtomicReference<>(null);
 
   private final Directory directoryOrig; // original user directory
@@ -281,9 +273,10 @@ public class IndexWriter
 
   static final class EventQueue implements Closeable {
     private volatile boolean closed;
-    // we use a semaphore here instead of simply synced methods to allow
-    // events to be processed concurrently by multiple threads such that all events
-    // for a certain thread are processed once the thread returns from IW
+    // 我们这里使用信号量而不是简单的同步方法， 以允许多个线程并发的处理事件。
+    // such that all events for a certain thread are processed once the thread returns from IW
+    // (没懂，这里信号量的意义，特别是信号量设置为 MAX_VALUE 应该起不到任何作用才对)
+    // 这样，一旦某个线程从IW返回，该线程的所有事件都将被处理
     private final Semaphore permits = new Semaphore(Integer.MAX_VALUE);
     private final Queue<Event> queue = new ConcurrentLinkedQueue<>();
     private final IndexWriter writer;
@@ -1111,8 +1104,7 @@ public class IndexWriter
       pendingNumDocs.set(segmentInfos.totalMaxDoc());
 
       // start with previous field numbers, but new FieldInfos
-      // NOTE: this is correct even for an NRT reader because we'll pull FieldInfos even for the
-      // un-committed segments:
+      // 注意:即使对于NRT reader，这也是正确的，因为即使对于未提交的段，我们也会提取FieldInfos:
       globalFieldNumberMap = getFieldNumberMap();
 
       validateIndexSort();
@@ -1527,6 +1519,7 @@ public class IndexWriter
     ensureOpen();
     boolean success = false;
     try {
+      // 逻辑在这里
       final long seqNo = maybeProcessEvents(docWriter.updateDocuments(docs, delNode));
       success = true;
       return seqNo;
@@ -1755,8 +1748,7 @@ public class IndexWriter
   }
 
   /**
-   * Deletes the document(s) containing any of the terms. All given deletes are applied and flushed
-   * atomically at the same time.
+   * 删除包含任何 terms 的文档。 所有的删除都同时原子性的执行和刷新。
    *
    * @return The <a href="#sequence_number">sequence number</a> for this operation
    * @param terms array of terms to identify the documents to be deleted
@@ -1801,13 +1793,12 @@ public class IndexWriter
   }
 
   /**
-   * Updates a document by first deleting the document(s) containing <code>term</code> and then
-   * adding the new document. The delete and then add are atomic as seen by a reader on the same
-   * index (flush may happen only after the add).
+   * 通过下面的方式更新文档：首先删除包含<code>term</code>的那些文档，然后添加新文档。
+   * 对于同一个索引上的读取器来说，delete和add都是原子操作(只有在add之后才会flush)。
    *
    * @return 这个操作的 <a href="#sequence_number">sequence number</a>
-   * @param term the term to identify the document(s) to be deleted
-   * @param doc the document to be added
+   * @param term 标识需要被删除的那些文档
+   * @param doc 需要添加的文档
    * @throws CorruptIndexException if the index is corrupt
    * @throws IOException if there is a low-level IO error
    */
@@ -2016,9 +2007,14 @@ public class IndexWriter
     return flushDeletesCount.get();
   }
 
+  /**
+   * 这个方法修改了 changeCount,segmentInfos.version,segmentInfos.counter
+   * 用于生成段名的是 segmentInfos.counter
+   * 为什么要修改前边两个，有什么做用？
+   * @return
+   */
   private final String newSegmentName() {
-    // Cannot synchronize on IndexWriter because that causes
-    // deadlock
+    // 不能根据IndexWriter来进行同步，因为会引起死锁
     synchronized (segmentInfos) {
       // Important to increment changeCount so that the
       // segmentInfos is written on close.  Otherwise we
@@ -2027,6 +2023,7 @@ public class IndexWriter
       // problems at least with ConcurrentMergeScheduler.
       changeCount.incrementAndGet();
       segmentInfos.changed();
+      // 转为_开头+三十六进制的字符串形式
       return "_" + Long.toString(segmentInfos.counter++, Character.MAX_RADIX);
     }
   }
@@ -2905,28 +2902,22 @@ public class IndexWriter
   }
 
   /**
-   * Adds all segments from an array of indexes into this index.
+   * 将索引数组中所有的段添加到当前索引中
    *
-   * <p>This may be used to parallelize batch indexing. A large document collection can be broken
-   * into sub-collections. Each sub-collection can be indexed in parallel, on a different thread,
-   * process or machine. The complete index can then be created by merging sub-collection indexes
-   * with this method.
+   * 这个方法可以用于并行化批处理索引。大型文档集合可以分解为子集合。每个子集合可以在不同的线程、进程或机器上并行地建立索引。
+   * 然后，可以通过使用此方法合并子索引的集合来创建完整的索引。
    *
-   * <p><b>NOTE:</b> this method acquires the write lock in each directory, to ensure that no {@code
-   * IndexWriter} is currently open or tries to open while this is running.
+   * <p><b>注意:</b>这个方法在每个目录中获取写锁，以确保在运行时没有{@code IndexWriter}正在打开或试图打开这个目录。
    *
-   * <p>This method is transactional in how Exceptions are handled: it does not commit a new
-   * segments_N file until all indexes are added. This means if an Exception occurs (for example
-   * disk full), then either no indexes will have been added or they all will have been.
+   * 这个方法在异常处理方面是事务性的: 在全部索引被添加之前，它不会提交一个新的segments_N文件。
+   * 这意味着如果发生异常(例如磁盘已满)，那么要么没有添加任何索引，要么添加了全部索引。
    *
-   * <p>Note that this requires temporary free space in the {@link Directory} up to 2X the sum of
-   * all input indexes (including the starting index). If readers/searchers are open against the
-   * starting index, then temporary free space required will be higher by the size of the starting
-   * index (see {@link #forceMerge(int)} for details).
+   * 注意，这个过程需要{@link Directory}中的临时空闲空间，最多为所有输入索引(包括起始索引)之和的2X。
+   * 如果reader/searchers已经打开了起始索，那么所需的临时空闲空间将比起始索引的大小更高(详见{@link #forceMerge(int)})。
    *
-   * <p>This requires this index not be among those to be added.
+   * <p>当前索引不应该在被添加的索引中。
    *
-   * <p>All added indexes must have been created by the same Lucene version as this index.
+   * <p>所有添加的索引必须是由与该索引相同的Lucene版本创建。
    *
    * @return The <a href="#sequence_number">sequence number</a> for this operation
    * @throws CorruptIndexException if the index is corrupt
@@ -3424,6 +3415,7 @@ public class IndexWriter
           boolean flushSuccess = false;
           boolean success = false;
           try {
+            // flush逻辑在这里
             seqNo = docWriter.flushAllThreads();
             if (seqNo < 0) {
               anyChanges = true;
@@ -3796,11 +3788,11 @@ public class IndexWriter
   private final Object commitLock = new Object();
 
   /**
-   * Commits all pending changes (added and deleted documents, segment merges, added indexes, etc.)
+   * 提交所有挂起的更改 (添加删除文档, 段合并, 添加索引, 等等。)
    * to the index, and syncs all referenced index files, such that a reader will see the changes and
    * the index updates will survive an OS or machine crash or power loss. Note that this does not
-   * wait for any running background merges to finish. This may be a costly operation, so you should
-   * test the cost in your application and do it only when really necessary.
+   * wait for any running background merges to finish. 这个操作成本较高, 因此您应该在应用程序中测试成本，
+   * 并只在真正需要的时候进行。
    *
    * <p>Note that this operation calls Directory.sync on the index files. That call should not
    * return until the file contents and metadata are on stable storage. For FSDirectory, this calls
@@ -3959,8 +3951,8 @@ public class IndexWriter
   private final Object fullFlushLock = new Object();
 
   /**
-   * Moves all in-memory segments to the {@link Directory}, but does not commit (fsync) them (call
-   * {@link #commit} for that).
+   * 将所有内存中的段移入 {@link Directory}, 但是不提交他们，(可以调用
+   * {@link #commit} 用于提交。
    */
   public final void flush() throws IOException {
     flush(true, true);
@@ -3975,14 +3967,12 @@ public class IndexWriter
    */
   final void flush(boolean triggerMerge, boolean applyAllDeletes) throws IOException {
 
-    // NOTE: this method cannot be sync'd because
-    // maybeMerge() in turn calls mergeScheduler.merge which
-    // in turn can take a long time to run and we don't want
-    // to hold the lock for that.  In the case of
-    // ConcurrentMergeScheduler this can lead to deadlock
-    // when it stalls due to too many running merges.
+    // NOTE: 这个方法无法同步
+    // 因为maybeMerge()反过来会调用 mergeScheduler.merge 这会花费很长时间。
+    // 我们不想因为这个持有锁。
+    // 在ConcurrentMergeScheduler的情况下，当它由于太多正在运行的合并而停止时，可能会导致死锁
 
-    // We can be called during close, when closing==true, so we must pass false to ensureOpen:
+    // 当close ==true时，可以在close期间调用该函数，因此必须将false传递给ensureOpen
     ensureOpen(false);
     if (doFlush(applyAllDeletes) && triggerMerge) {
       maybeMerge(config.getMergePolicy(), MergeTrigger.FULL_FLUSH, UNBOUNDED_MAX_MERGE_SEGMENTS);
@@ -5535,10 +5525,9 @@ public class IndexWriter
   }
 
   /**
-   * NOTE: this method creates a compound file for all files returned by info.files(). While,
-   * generally, this may include separate norms and deletion files, this SegmentInfo must not
-   * reference such files when this method is called, because they are not allowed within a compound
-   * file.
+   * 注意: 此方法为info.files()返回的所有文件创建一个复合文件。
+   * 通常，这应该包括norm文件和删除文件，
+   * 但当调用此方法时，此SegmentInfo不能引用这些文件，因为它们不允许在复合文件中使用。
    */
   static void createCompoundFile(
       InfoStream infoStream,
@@ -5698,6 +5687,7 @@ public class IndexWriter
 
   private void processEvents(boolean triggerMerge) throws IOException {
     if (tragedy.get() == null) {
+      // 如果没有灾难发生
       eventQueue.processEvents();
     }
     if (triggerMerge) {
@@ -5707,8 +5697,8 @@ public class IndexWriter
   }
 
   /**
-   * Interface for internal atomic events. See {@link DocumentsWriter} for details. Events are
-   * executed concurrently and no order is guaranteed. Each event should only rely on the
+   * 内部原子事件接口. 从 {@link DocumentsWriter} 查看详情。 事件并发执行，不保证顺序。
+   * Each event should only rely on the
    * serializeability within its process method. All actions that must happen before or after a
    * certain action must be encoded inside the {@link #process(IndexWriter)} method.
    */
