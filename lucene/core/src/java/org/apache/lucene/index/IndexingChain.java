@@ -76,11 +76,13 @@ final class IndexingChain implements Accountable {
   private PerField[] fieldHash = new PerField[2];
   private int hashMask = 1;
 
+  // 总字段数量，名称相同的算一个
   private int totalFieldCount;
   private long nextFieldGen;
 
-  // 保存在每个文档中看到的字段
+  // 保存当前用到的字段，这个数组是多个文档公用的,每次根据索引重新赋值
   private PerField[] fields = new PerField[1];
+  // 每个文档所有字段，包括重复的字段
   private PerField[] docFields = new PerField[2];
   private final InfoStream infoStream;
   private final ByteBlockPool.Allocator byteBlockAllocator;
@@ -577,7 +579,8 @@ final class IndexingChain implements Accountable {
   void processDocument(int docID, Iterable<? extends IndexableField> document) throws IOException {
     // 按名称聚合的字段数量 (相同名称的折叠)
     int fieldCount = 0;
-    int indexedFieldCount = 0; // 唯一字段数量
+    // 需要建立倒排索引的字段数量
+    int indexedFieldCount = 0;
     long fieldGen = nextFieldGen++;
     int docFieldIdx = 0;
 
@@ -597,24 +600,29 @@ final class IndexingChain implements Accountable {
         // 如果有名称相同字段，拿出来的是原先创建的 pf 如果没有，获取到的是新的 pf
         // 第二个参数 字段类型 并没有使用
         PerField pf = getOrAddPerField(field.name(), fieldType);
-        // 新生成的字段是 -1
+        // 新生成 pf.fieldGen=-1,这里判断这个字段在当前文档中是否第一次出现
+        // 因为fieldGen每处理一个新文档都会+1;
         if (pf.fieldGen != fieldGen) { // first time we see this field in this document
+          // fields是公用的？将本文档的字段依次覆盖，然后根据fieldCount来计算长度？
           fields[fieldCount++] = pf;
-          pf.fieldGen = fieldGen;
+          pf.fieldGen = fieldGen; // 标记这个pf已经处理过了
           pf.reset(docID);
         }
         if (docFieldIdx >= docFields.length) {
+          // 给字段 docFields 扩容
           oversizeDocFields();
         }
         // 同名字段,docFields的索引不同，但是值是一样的
+        // docFields 存储内容与 document 中的字段一一对应
         docFields[docFieldIdx++] = pf;
+        // 更新和验证某些文档的 schema
         updateDocFieldSchema(field.name(), pf.schema, fieldType);
       }
-      // For each field, if it the first time we see this field in this segment,
-      // initialize its FieldInfo.
-      // If we have already seen this field, verify that its schema
-      // within the current doc matches its schema in the index.
+
+      // 对于每个字段，如果它是我们在这个段中第一次看到这个字段，初始化它的FieldInfo。
+      // 如果这个字段已经出现过，验证当前文档中的模式是否与索引中的模式匹配。
       for (int i = 0; i < fieldCount; i++) {
+        // 遍历当前文档用到的字段，重名的只一次
         PerField pf = fields[i];
         if (pf.fieldInfo == null) {
           initializeFieldInfo(pf);
@@ -625,10 +633,13 @@ final class IndexingChain implements Accountable {
 
       // 2nd pass over doc fields – index each field
       // also count the number of unique fields indexed with postings
+      // 第二次遍历文档字段——索引每个字段，还会统计发文索引的唯一字段的数量
       docFieldIdx = 0;
       for (IndexableField field : document) {
         // 逻辑往这里走
         if (processField(docID, field, docFields[docFieldIdx])) {
+          // 如果某个字段首次建立倒排索引，processField返回true,执行下面的逻辑
+          // 这里的fields字段，在这个方法中又一次被使用
           fields[indexedFieldCount] = docFields[docFieldIdx];
           indexedFieldCount++;
         }
@@ -636,7 +647,7 @@ final class IndexingChain implements Accountable {
       }
     } finally {
       if (hasHitAbortingException == false) {
-        // Finish each indexed field name seen in the document:
+        // 只有倒排的字段 才调用finish,不论同名倒排有一个，只调用一次
         for (int i = 0; i < indexedFieldCount; i++) {
           fields[i].finish(docID);
         }
@@ -663,14 +674,10 @@ final class IndexingChain implements Accountable {
   }
 
   private void initializeFieldInfo(PerField pf) throws IOException {
-    // Create and add a new fieldInfo to fieldInfos for this segment.
-    // During the creation of FieldInfo there is also verification of the correctness of all its
-    // parameters.
-
-    // If the fieldInfo doesn't exist in globalFieldNumbers for the whole index,
-    // it will be added there.
-    // If the field already exists in globalFieldNumbers (i.e. field present in other segments),
-    // we check consistency of its schema with schema for the whole index.
+    // 为这个段创建并添加一个新的fieldInfo到fieldInfos。
+    // 在创建FieldInfo的过程中，还要验证其所有参数。
+    // 如果整个索引的 globalFieldNumbers 中不存在fieldInfo，它将会被添加。
+    // 如果字段已经存在于 globalFieldNumbers 中(即字段存在于其他段中)，则检查它的schema与整个索引的schema是否一致。
     FieldSchema s = pf.schema;
     if (indexWriterConfig.getIndexSort() != null && s.docValuesType != DocValuesType.NONE) {
       final Sort indexSort = indexWriterConfig.getIndexSort();
@@ -805,7 +812,7 @@ final class IndexingChain implements Accountable {
       pf.next = fieldHash[hashPos];
       // 当前hash 指向这个pf
       fieldHash[hashPos] = pf;
-      // 总的字段数量+1
+      // 总的字段数量（同名字段算一个）+1
       totalFieldCount++;
       // At most 50% load factor:
       if (totalFieldCount >= fieldHash.length / 2) {
@@ -822,7 +829,7 @@ final class IndexingChain implements Accountable {
     return pf;
   }
 
-  // update schema for field as seen in a particular document
+  // 更新特定文档中字段的 schema
   private static void updateDocFieldSchema(
       String fieldName, FieldSchema schema, IndexableFieldType fieldType) {
     if (fieldType.indexOptions() != IndexOptions.NONE) {
